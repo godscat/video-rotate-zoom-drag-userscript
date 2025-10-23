@@ -1,5 +1,5 @@
 const common = require("./webpack.common.js");
-const {merge} = require("webpack-merge");
+const { merge } = require("webpack-merge");
 module.exports = merge(common, {
     //开启这个可以在生产环境中调试代码
     devtool: "source-map",

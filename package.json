@@ -1,27 +1,29 @@
 {
-  "name": "@javascript-reverse-engineering-infrastructure/create-userscript",
-  "version": "1.0.0",
-  "description": "A template for developing userscripts with Node.js and Webpack",
-  "main": "index.js",
-  "bin": {
-    "create-userscript-template": "./bin/create-userscript.js"
-  },
+  "name": "bilibili-video-rotate-zoom-drag",
+  "version": "1.2.0",
+  "description": "B站视频增强：缩放、旋转、拖拽移动和还原功能",
+  "main": "src/video-rotate-zoom-drag.user.js",
   "repository": "https://github.com/JSREI/userscript-template.git",
   "namespace": "https://github.com/JSREI/userscript-template.git",
   "document": "https://github.com/JSREI/userscript-template.git",
   "keywords": [
+    "bilibili",
+    "video",
+    "rotate",
+    "zoom",
+    "drag",
     "userscript",
     "tampermonkey",
-    "greasemonkey",
-    "template",
-    "webpack",
-    "create"
+    "greasemonkey"
   ],
   "scripts": {
     "build": "webpack --config webpack.prod.js",
-    "watch": "webpack --watch --config webpack.dev.js"
+    "build:simple": "node build-simple.js",
+    "watch": "webpack --watch --config webpack.dev.js",
+    "dev": "echo 'Development mode - ready for testing'",
+    "clean:dist-folder": "rimraf ./dist"
   },
-  "author": "CC11001100 <CC11001100@qq.com>",
+  "author": "浮云里的浮云",
   "license": "MIT",
   "devDependencies": {
     "webpack": "^5.88.2",
@@ -29,9 +31,11 @@
     "webpack-merge": "^5.9.0"
   },
   "files": [
-    "bin/",
-    "template/",
     "README.md",
-    "LICENSE"
-  ]
+    "LICENSE",
+    "src/",
+    "banner.txt"
+  ],
+  "packageManager": "pnpm@10.18.1+sha512.77a884a165cbba2d8d1c19e3b4880eee6d2fcabd0d879121e282196b80042351d5eb3ca0935fa599da1dc51265cc68816ad2bddd2a2de5ea9fdf92adbec7cd34",
+  "dependencies": {}
 }
