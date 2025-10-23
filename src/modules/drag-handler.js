@@ -60,19 +60,42 @@ export class DragHandler {
    * @param {MouseEvent} e - 鼠标事件
    */
   _handleMouseDown(e) {
-    // 只有在缩放状态下才能拖拽
-    if (!this.videoTransform.canDrag()) return;
+    // 检查拖拽功能是否启用
+    if (!this.config.drag || !this.config.drag.enabled) return;
 
-    // 根据平台配置决定事件处理策略
-    const eventConfig = this.config.eventHandling || {};
+    // 只有在缩放状态下才能拖拽，且只有左键才能拖拽
+    if (!this.videoTransform.canDrag() || e.button !== 0) return;
 
-    if (eventConfig.preventDefault) {
-      e.preventDefault();
+    // 检查修饰键
+    const dragModifier = this.config.drag.modifier;
+    let modifierPressed = false;
+
+    if (dragModifier) {
+      switch (dragModifier.toLowerCase()) {
+        case 'ctrl':
+          modifierPressed = e.ctrlKey || e.metaKey; // 支持 Mac 的 Cmd 键
+          break;
+        case 'shift':
+          modifierPressed = e.shiftKey;
+          break;
+        case 'alt':
+          modifierPressed = e.altKey;
+          break;
+        default:
+          modifierPressed = true; // 未知修饰键，默认允许
+      }
+    } else {
+      modifierPressed = true; // 无修饰键配置，总是允许
     }
-    if (eventConfig.preventPropagation) {
-      e.stopPropagation();
-      e.stopImmediatePropagation();
+
+    if (!modifierPressed) {
+      return; // 没有按住修饰键，不处理
     }
+
+    // 强制阻止所有默认行为，防止触发播放器的播放/暂停功能
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
 
     const { offsetX, offsetY } = this.videoTransform.getOffset();
 
@@ -82,7 +105,7 @@ export class DragHandler {
 
     this.videoContainer.style.cursor = "grabbing";
 
-    console.log(`[${this.config.platform}] 开始拖拽，初始位置:`, {
+    console.log(`[${this.config.platform}] 开始拖拽，修饰键: ${dragModifier || '无'}，初始位置:`, {
       startX: this.state.startX,
       startY: this.state.startY,
     });
@@ -96,15 +119,10 @@ export class DragHandler {
   _handleMouseMove(e) {
     if (!this.state.isDragging) return;
 
-    // 根据平台配置决定事件处理策略
-    const eventConfig = this.config.eventHandling || {};
-
-    if (eventConfig.preventDefault) {
-      e.preventDefault();
-    }
-    if (eventConfig.preventPropagation) {
-      e.stopPropagation();
-    }
+    // 强制阻止默认行为，防止拖拽时影响播放器
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
 
     const offsetX = e.clientX - this.state.startX;
     const offsetY = e.clientY - this.state.startY;

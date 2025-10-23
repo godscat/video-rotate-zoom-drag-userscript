@@ -44,6 +44,7 @@ const CONFIG = {
       gap: "12px",
       marginLeft: "15px",
       marginBottom: "4px",
+      marginRight: "15px",
     },
     // 按钮样式
     button: {
@@ -204,6 +205,13 @@ const CONFIG = {
     preventPageScroll: true, // 阻止页面滚动
   },
 
+  // 拖拽功能配置
+  drag: {
+    enabled: true, // 是否启用拖拽功能
+    modifier: null, // 修饰键: 'ctrl', 'shift', 'alt', null 表示不需要修饰键
+    preventDefault: true, // 是否阻止默认行为
+  },
+
   // 平台特定配置
   platforms: {
     bilibili: {
@@ -213,6 +221,10 @@ const CONFIG = {
         videoContainer: ".bpx-player-video-wrap,.fp-player",
         fullscreenBtn: ".bpx-player-ctrl-full",
       },
+      // B站拖拽配置
+      drag: {
+        modifier: "ctrl", // B站需要按住 Ctrl 才能拖拽
+      },
     },
     youtube: {
       // YouTube特定配置
@@ -220,6 +232,10 @@ const CONFIG = {
         controlsContainer: ".ytp-left-controls",
         videoContainer: ".html5-video-container",
         fullscreenBtn: ".ytp-fullscreen-button",
+      },
+      // YouTube拖拽配置
+      drag: {
+        modifier: "ctrl", // YouTube需要按住 Ctrl 才能拖拽
       },
     },
     // 可以继续添加其他平台配置
@@ -247,6 +263,17 @@ function getPlatformConfig(platform = CONFIG.platform) {
       ...baseConfig.selectors,
       ...platformConfig.selectors,
     },
+    drag: {
+      ...baseConfig.drag,
+      ...(platformConfig.drag || {}),
+    },
+    // 合并平台特定的参数和事件处理配置
+    ...(platformConfig.parameters && {
+      parameters: { ...baseConfig.parameters, ...platformConfig.parameters },
+    }),
+    ...(platformConfig.eventHandling && {
+      eventHandling: platformConfig.eventHandling,
+    }),
   };
 }
 
