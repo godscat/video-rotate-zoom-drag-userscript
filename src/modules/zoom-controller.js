@@ -82,6 +82,14 @@ export class ZoomController {
   }
 
   /**
+   * 获取当前缩放级别
+   * @returns {number} 当前缩放级别
+   */
+  getCurrentZoomLevel() {
+    return this.videoTransform.getZoomLevel();
+  }
+
+  /**
    * 设置缩放级别
    * @param {number} zoomLevel - 目标缩放级别
    */

@@ -9,7 +9,7 @@ export class VideoTransform {
       zoomLevel: config.parameters.zoom.default,
       rotation: config.parameters.rotation.default,
       offsetX: 0,
-      offsetY: 0
+      offsetY: 0,
     };
 
     if (this.videoContainer) {
@@ -93,7 +93,7 @@ export class VideoTransform {
       zoomLevel: this.config.parameters.zoom.default,
       rotation: this.config.parameters.rotation.default,
       offsetX: 0,
-      offsetY: 0
+      offsetY: 0,
     };
     this.applyTransform();
   }
@@ -129,7 +129,7 @@ export class VideoTransform {
   getOffset() {
     return {
       offsetX: this.state.offsetX,
-      offsetY: this.state.offsetY
+      offsetY: this.state.offsetY,
     };
   }
 
@@ -138,6 +138,7 @@ export class VideoTransform {
    * @returns {boolean} 是否可以拖拽
    */
   canDrag() {
-    return this.state.zoomLevel > this.config.parameters.zoom.dragThreshold;
+    const { enableDragThreshold, dragThreshold } = this.config.parameters.zoom;
+    return !enableDragThreshold || this.state.zoomLevel > dragThreshold;
   }
 }

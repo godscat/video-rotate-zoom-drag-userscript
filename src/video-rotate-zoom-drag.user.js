@@ -29,9 +29,10 @@ import { Initializer } from "./modules/initializer.js";
    */
   function main() {
     try {
-      initializer = new Initializer();
+      console.log("开始初始化视频控制器，将自动检测平台");
+      initializer = new Initializer(); // 不传参数，让 Initializer 自动检测平台
       initializer.start();
-      console.log("视频控制器初始化成功");
+      console.log("视频控制器初始化成功，检测到平台:", initializer.platform);
     } catch (error) {
       console.error("视频控制器初始化失败:", error);
     }
@@ -57,6 +58,7 @@ import { Initializer } from "./modules/initializer.js";
       init: main,
       getState: () => initializer?.getState() || null,
       reinit: () => initializer?.reinit(),
+      getPlatform: () => initializer?.platform || null,
     };
   }
 })();

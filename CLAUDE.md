@@ -11,9 +11,9 @@ B 站视频增强用户脚本项目，为视频播放器添加缩放、旋转、
 ### Available Commands
 
 ```bash
-npm run build    # 生产环境构建
-npm run watch    # 开发环境监听模式
-npm run dev      # 开发模式提示
+pnpm run build    # 生产环境构建
+pnpm run watch    # 开发环境监听模式
+pnpm run dev      # 开发模式提示
 ```
 
 ### Package Manager

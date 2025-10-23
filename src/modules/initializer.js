@@ -6,19 +6,24 @@ import { RotationController } from './rotation-controller.js';
 import { DragHandler } from './drag-handler.js';
 import { KeyboardShortcuts } from './keyboard-shortcuts.js';
 import { getPlatformConfig } from './config.js';
+import { detectPlatform } from './platform-detector.js';
 
 /**
  * 初始化模块 - 负责初始化和协调所有功能模块
  */
 export class Initializer {
-  constructor(platform = 'bilibili') {
-    this.config = getPlatformConfig(platform);
+  constructor() {
+    // 自动检测平台
+    this.platform = detectPlatform();
+    this.config = getPlatformConfig(this.platform);
     this.videoTransform = null;
     this.zoomController = null;
     this.rotationController = null;
     this.dragHandler = null;
     this.keyboardShortcuts = null;
     this.observer = null;
+
+    console.log(`Initializer 初始化，检测到平台: ${this.platform}`);
   }
 
   /**

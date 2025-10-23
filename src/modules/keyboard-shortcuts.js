@@ -1,6 +1,8 @@
 /**
  * 键盘快捷键模块 - 管理键盘快捷键功能
  */
+import { WheelHandler } from './wheel-handler.js';
+
 export class KeyboardShortcuts {
   /**
    * 初始化键盘快捷键
@@ -17,6 +19,9 @@ export class KeyboardShortcuts {
     this.videoTransform = videoTransform;
     this.config = config;
 
+    // 初始化滚轮处理器
+    this.wheelHandler = new WheelHandler(zoomController, config);
+
     this._bindEvents();
   }
 
@@ -26,6 +31,11 @@ export class KeyboardShortcuts {
    */
   _bindEvents() {
     document.addEventListener("keydown", (e) => this._handleKeyDown(e));
+
+    // 启用滚轮缩放功能
+    if (this.wheelHandler) {
+      this.wheelHandler.enable();
+    }
   }
 
   /**
@@ -197,5 +207,10 @@ export class KeyboardShortcuts {
    */
   destroy() {
     document.removeEventListener("keydown", this._handleKeyDown);
+
+    // 销毁滚轮处理器
+    if (this.wheelHandler) {
+      this.wheelHandler.destroy();
+    }
   }
 }

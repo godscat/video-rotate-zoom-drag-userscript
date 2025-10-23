@@ -15,8 +15,13 @@ export class DragHandler {
     this.state = {
       isDragging: false,
       startX: 0,
-      startY: 0
+      startY: 0,
     };
+
+    // 绑定 this 上下文
+    this._handleMouseDown = this._handleMouseDown.bind(this);
+    this._handleMouseMove = this._handleMouseMove.bind(this);
+    this._handleMouseUp = this._handleMouseUp.bind(this);
 
     this._bindEvents();
   }
@@ -26,14 +31,27 @@ export class DragHandler {
    * @private
    */
   _bindEvents() {
+    // 根据平台配置决定事件监听策略
+    const eventConfig = this.config.eventHandling || {};
+    const useCapture = eventConfig.captureEvents || false;
+
+    console.log(
+      `[${this.config.platform}] 绑定拖拽事件，使用捕获模式:`,
+      useCapture
+    );
+
     // 鼠标按下事件
-    this.videoContainer.addEventListener("mousedown", (e) => this._handleMouseDown(e));
+    this.videoContainer.addEventListener(
+      "mousedown",
+      this._handleMouseDown,
+      useCapture
+    );
 
     // 鼠标移动事件
-    document.addEventListener("mousemove", (e) => this._handleMouseMove(e));
+    document.addEventListener("mousemove", this._handleMouseMove, useCapture);
 
     // 鼠标释放事件
-    document.addEventListener("mouseup", () => this._handleMouseUp());
+    document.addEventListener("mouseup", this._handleMouseUp, useCapture);
   }
 
   /**
@@ -45,6 +63,17 @@ export class DragHandler {
     // 只有在缩放状态下才能拖拽
     if (!this.videoTransform.canDrag()) return;
 
+    // 根据平台配置决定事件处理策略
+    const eventConfig = this.config.eventHandling || {};
+
+    if (eventConfig.preventDefault) {
+      e.preventDefault();
+    }
+    if (eventConfig.preventPropagation) {
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    }
+
     const { offsetX, offsetY } = this.videoTransform.getOffset();
 
     this.state.isDragging = true;
@@ -52,6 +81,11 @@ export class DragHandler {
     this.state.startY = e.clientY - offsetY;
 
     this.videoContainer.style.cursor = "grabbing";
+
+    console.log(`[${this.config.platform}] 开始拖拽，初始位置:`, {
+      startX: this.state.startX,
+      startY: this.state.startY,
+    });
   }
 
   /**
@@ -61,6 +95,16 @@ export class DragHandler {
    */
   _handleMouseMove(e) {
     if (!this.state.isDragging) return;
+
+    // 根据平台配置决定事件处理策略
+    const eventConfig = this.config.eventHandling || {};
+
+    if (eventConfig.preventDefault) {
+      e.preventDefault();
+    }
+    if (eventConfig.preventPropagation) {
+      e.stopPropagation();
+    }
 
     const offsetX = e.clientX - this.state.startX;
     const offsetY = e.clientY - this.state.startY;
@@ -135,8 +179,21 @@ export class DragHandler {
    * 销毁事件监听器
    */
   destroy() {
-    this.videoContainer.removeEventListener("mousedown", this._handleMouseDown);
-    document.removeEventListener("mousemove", this._handleMouseMove);
-    document.removeEventListener("mouseup", this._handleMouseUp);
+    const eventConfig = this.config.eventHandling || {};
+    const useCapture = eventConfig.captureEvents || false;
+
+    if (this.videoContainer) {
+      this.videoContainer.removeEventListener(
+        "mousedown",
+        this._handleMouseDown,
+        useCapture
+      );
+    }
+    document.removeEventListener(
+      "mousemove",
+      this._handleMouseMove,
+      useCapture
+    );
+    document.removeEventListener("mouseup", this._handleMouseUp, useCapture);
   }
 }

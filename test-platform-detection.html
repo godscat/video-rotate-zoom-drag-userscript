@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>平台检测测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-result {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>用户脚本平台检测测试</h1>
+
+    <h2>测试说明</h2>
+    <p>这个页面用于测试平台检测功能。在不同URL下打开此页面，会检测到不同的平台。</p>
+
+    <h2>当前页面信息</h2>
+    <div class="test-result">
+        <strong>当前URL:</strong> <span id="current-url"></span>
+    </div>
+
+    <h2>平台检测结果</h2>
+    <div id="platform-result" class="test-result">
+        点击下面的按钮进行平台检测
+    </div>
+
+    <h2>测试不同URL</h2>
+    <p>在浏览器开发者工具中模拟不同URL进行测试：</p>
+
+    <button onclick="testURL('https://www.bilibili.com/video/BV1234567890')">测试 B站 URL</button>
+    <button onclick="testURL('https://www.youtube.com/watch?v=dQw4w9WgXcQ')">测试 YouTube URL</button>
+    <button onclick="testURL('https://www.youku.com/v_show/id_XNDkyNzQ1NjgwNA==.html')">测试 优酷 URL</button>
+    <button onclick="testURL('https://www.iqiyi.com/v_1234567890.html')">测试 爱奇艺 URL</button>
+    <button onclick="testURL('https://example.com/video')">测试 未知 URL</button>
+
+    <h2>手动重新检测当前平台</h2>
+    <button onclick="detectCurrentPlatform()">检测当前页面平台</button>
+
+    <script type="module">
+        // 模拟平台检测模块（简化版）
+        const PLATFORM_PATTERNS = {
+            bilibili: {
+                patterns: [
+                    /https?:\/\/www\.bilibili\.com\//,
+                    /https?:\/\/bangumi\.bilibili\.com\//,
+                    /https?:\/\/b23\.tv\//
+                ],
+                name: 'Bilibili'
+            },
+            youtube: {
+                patterns: [
+                    /https?:\/\/www\.youtube\.com\//,
+                    /https?:\/\/youtu\.be\//,
+                    /https?:\/\/m\.youtube\.com\//
+                ],
+                name: 'YouTube'
+            },
+            youku: {
+                patterns: [
+                    /https?:\/\/www\.youku\.com\//,
+                    /https?:\/\/v\.youku\.com\//
+                ],
+                name: 'Youku'
+            },
+            iqiyi: {
+                patterns: [
+                    /https?:\/\/www\.iqiyi\.com\//,
+                    /https?:\/\/www\.iq\.com\//
+                ],
+                name: 'iQIYI'
+            }
+        };
+
+        function detectPlatform(testUrl = null) {
+            const currentUrl = testUrl || window.location.href;
+
+            for (const [platform, config] of Object.entries(PLATFORM_PATTERNS)) {
+                for (const pattern of config.patterns) {
+                    if (pattern.test(currentUrl)) {
+                        return {
+                            platform,
+                            name: config.name,
+                            url: currentUrl
+                        };
+                    }
+                }
+            }
+
+            return {
+                platform: 'bilibili',
+                name: 'Bilibili (默认)',
+                url: currentUrl,
+                default: true
+            };
+        }
+
+        // 显示当前URL
+        document.getElementById('current-url').textContent = window.location.href;
+
+        // 全局函数供按钮调用
+        window.detectCurrentPlatform = function() {
+            const result = detectPlatform();
+            const resultDiv = document.getElementById('platform-result');
+
+            if (result.default) {
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `
+                    <strong>未检测到已知平台</strong><br>
+                    URL: ${result.url}<br>
+                    使用默认平台: ${result.name} (${result.platform})
+                `;
+            } else {
+                resultDiv.className = 'test-result success';
+                resultDiv.innerHTML = `
+                    <strong>检测成功</strong><br>
+                    URL: ${result.url}<br>
+                    检测到平台: ${result.name} (${result.platform})
+                `;
+            }
+
+            console.log('平台检测结果:', result);
+        };
+
+        window.testURL = function(url) {
+            const result = detectPlatform(url);
+            const resultDiv = document.getElementById('platform-result');
+
+            if (result.default) {
+                resultDiv.className = 'test-result error';
+                resultDiv.innerHTML = `
+                    <strong>未检测到已知平台</strong><br>
+                    测试URL: ${result.url}<br>
+                    使用默认平台: ${result.name} (${result.platform})
+                `;
+            } else {
+                resultDiv.className = 'test-result success';
+                resultDiv.innerHTML = `
+                    <strong>检测成功</strong><br>
+                    测试URL: ${result.url}<br>
+                    检测到平台: ${result.name} (${result.platform})
+                `;
+            }
+
+            console.log('平台检测结果:', result);
+        };
+
+        // 页面加载时自动检测
+        detectCurrentPlatform();
+    </script>
+</body>
+</html>
