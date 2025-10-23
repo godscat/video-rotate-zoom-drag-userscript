@@ -12,8 +12,8 @@
 // @include      https://bangumi.bilibili.com/anime/*/play*
 // @include      https://bangumi.bilibili.com/movie/*
 // @include      https://www.bilibili.com/list/watchlater/*
-// # youtube
 // @match        https://www.youtube.com/watch?v=*
+// @match        https://www.iwara.tv/video/*
 // @grant    GM_addStyle
 // @run-at       document-start
 // ==/UserScript==

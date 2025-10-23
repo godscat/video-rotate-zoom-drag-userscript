@@ -1,6 +1,8 @@
 /**
  * 鼠标滚轮处理器 - 支持 Ctrl+滚轮缩放视频
  */
+import { getLogger } from "./logger.js";
+
 export class WheelHandler {
   /**
    * 初始化滚轮处理器
@@ -10,6 +12,9 @@ export class WheelHandler {
   constructor(zoomController, config) {
     this.zoomController = zoomController;
     this.config = config;
+
+    // 获取全局日志器实例
+    this.logger = getLogger().createChild('WheelHandler');
 
     // 绑定事件处理器的 this 上下文
     this._handleWheel = this._handleWheel.bind(this);
@@ -30,14 +35,14 @@ export class WheelHandler {
 
     // 检查配置是否启用滚轮缩放
     if (!this.config.wheel || !this.config.wheel.enabled) {
-      console.log(`[${this.config.platform}] 滚轮缩放功能已禁用`);
+      this.logger.info(`滚轮缩放功能已禁用`);
       return;
     }
 
     // 获取视频容器
     const videoContainer = this.zoomController.videoTransform.videoContainer;
     if (!videoContainer) {
-      console.warn(`[${this.config.platform}] 未找到视频容器`);
+      this.logger.warn(`未找到视频容器`);
       return;
     }
 
@@ -51,8 +56,8 @@ export class WheelHandler {
         capture: true,
       });
       this.isEnabled = true;
-      console.log(
-        `[${this.config.platform}] 启用滚轮缩放功能，修饰键: ${
+      this.logger.info(
+        `启用滚轮缩放功能，修饰键: ${
           this.config.wheel.modifier || "ctrl"
         }，绑定到: body`
       );
@@ -72,7 +77,7 @@ export class WheelHandler {
       this.isEnabled = false;
       this.bindElement = null;
       this.videoElement = null;
-      console.log(`[${this.config.platform}] 禁用滚轮缩放功能`);
+      this.logger.info(`禁用滚轮缩放功能`);
     }
   }
 
@@ -111,7 +116,7 @@ export class WheelHandler {
 
     // 检查事件目标是否在 video 元素上
     // if (!this._isTargetVideo(e.target)) {
-    //   console.log(`[${this.config.platform}] 滚轮事件不在 video 元素上，忽略`);
+    //   this.logger.debug(`滚轮事件不在 video 元素上，忽略`);
     //   return;
     // }
 
@@ -127,14 +132,14 @@ export class WheelHandler {
     if (delta > 0) {
       // 每次滚轮只缩放一步，和快捷键保持一致
       this.zoomController.zoomIn();
-      console.log(
-        `[${this.config.platform}] ${modifier.toUpperCase()}+滚轮向上，放大到 ${this.zoomController.getCurrentZoomLevel()}%`
+      this.logger.info(
+        `${modifier.toUpperCase()}+滚轮向上，放大到 ${this.zoomController.getCurrentZoomLevel()}%`
       );
     } else if (delta < 0) {
       // 每次滚轮只缩放一步，和快捷键保持一致
       this.zoomController.zoomOut();
-      console.log(
-        `[${this.config.platform}] ${modifier.toUpperCase()}+滚轮向下，缩小到 ${this.zoomController.getCurrentZoomLevel()}%`
+      this.logger.info(
+        `${modifier.toUpperCase()}+滚轮向下，缩小到 ${this.zoomController.getCurrentZoomLevel()}%`
       );
     }
   }

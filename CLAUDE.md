@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-B 站视频增强用户脚本项目，为视频播放器添加缩放、旋转、拖拽移动和还原功能。采用模块化 ES6 架构，使用 webpack 构建生成兼容 Tampermonkey/Greasemonkey 的用户脚本。
+多平台视频增强用户脚本项目，为多个视频平台的播放器添加缩放、旋转、拖拽移动和还原功能。采用模块化 ES6 架构，使用自定义构建脚本生成兼容 Tampermonkey/Greasemonkey 的用户脚本。支持B站、YouTube、Youku、iQIYI、Iwara等平台。
 
 ## Build System
 
@@ -22,9 +22,10 @@ pnpm run dev      # 开发模式提示
 
 ### Build Output
 
-- **Development**: Serves on port 10086 with HMR and source maps
-- **Production**: Outputs readable, non-minified code to `dist/video-rotate-zoom-drag.user.js`
+- **Development**: Uses `src/video-rotate-zoom-drag.user.js` directly in Tampermonkey
+- **Production**: Outputs readable, non-minified code to `dist/video-rotate-zoom-drag.user.js` via simple build script
 - **Entry Point**: `src/video-rotate-zoom-drag.user.js`
+- **Build Tool**: Custom `build-simple.js` script that automatically discovers modules
 
 ## Architecture
 
@@ -32,29 +33,43 @@ pnpm run dev      # 开发模式提示
 
 The project follows a modular ES6 architecture where each major feature is separated into its own module:
 
-- **Initializer** (`src/modules/initializer.js`) - Main coordinator that manages initialization and lifecycle of all modules. Handles SPA page dynamic monitoring via MutationObserver.
+- **Initializer** (`src/modules/initializer.js`) - Main coordinator that manages initialization and lifecycle of all modules. Handles SPA page dynamic monitoring via MutationObserver and platform-specific configurations.
 - **VideoTransform** (`src/modules/video-transform.js`) - Core video transformation engine managing DOM elements, transforms (scale/rotate/translate), and state management.
+- **Platform Detection** (`src/modules/platform-detector.js`) - Automatic platform detection supporting bilibili, youtube, youku, iqiyi, iwara.
+- **Config Management** (`src/modules/config.js`) - Centralized configuration with platform-specific overrides and UI control settings.
 - **Controllers** - Feature-specific controllers:
-  - `ZoomController` - Zoom level management (50%-300%, 10% steps)
+  - `ZoomController` - Zoom level management (50%-300%, 5% steps)
   - `RotationController` - Rotation management (90° increments)
-  - `DragHandler` - Drag functionality (only active when zoom > 100%)
+  - `DragHandler` - Drag functionality with platform-specific modifier keys
+  - `WheelHandler` - Mouse wheel zoom handling with modifier key support
 - **Interaction Layer**:
-  - `UIComponents` - DOM element creation and management
-  - `KeyboardShortcuts` - Keyboard event handling
+  - `UIComponents` - DOM element creation and management with conditional display
+  - `KeyboardShortcuts` - Comprehensive keyboard event handling including movement
   - `Styles` - CSS injection via GM_addStyle
+- **Logging System** (`src/modules/logger.js`) - Global logging with timestamps and module prefixes
 
 ### Module Dependencies
 
 ```
 Initializer
+├── PlatformDetector (platform detection)
+├── Config (configuration management)
 ├── VideoTransform (core state)
-├── UIComponents (creation)
+├── UIComponents (conditional creation)
 ├── ZoomController → VideoTransform
 ├── RotationController → VideoTransform
 ├── DragHandler → VideoTransform
+├── WheelHandler → ZoomController
 ├── KeyboardShortcuts → all controllers
+├── Logger (global logging)
 └── Styles (independent)
 ```
+
+### Global Systems
+
+- **Logger**: Singleton pattern shared across all modules with child logger creation
+- **Config**: Platform-aware configuration system with automatic merging
+- **Event Coordination**: Centralized through Initializer with proper cleanup
 
 ### Key Design Patterns
 
@@ -68,7 +83,20 @@ Initializer
 
 ### Supported Sites
 
-Matches B 站 domains: `https://www.bilibili.com/*` and `https://bangumi.bilibili.com/*`
+Auto-detected platforms with domain matching:
+- **Bilibili**: `https://www.bilibili.com/*`, `https://bangumi.bilibili.com/*`
+- **YouTube**: `https://www.youtube.com/*`, `https://youtu.be/*`, `https://m.youtube.com/*`
+- **Youku**: `https://www.youku.com/*`, `https://v.youku.com/*`
+- **iQIYI**: `https://www.iqiyi.com/*`, `https://www.iq.com/*`
+- **Iwara**: `https://iwara.tv/*`
+
+### Platform-Specific Features
+
+- **UI Controls**: Enabled by default, disabled on Iwara for cleaner interface
+- **Drag Modifiers**:
+  - B站/YouTube/Iwara: Requires Ctrl key
+  - Other platforms: No modifier required
+- **Selectors**: Platform-specific CSS selectors for video containers and controls
 
 ### Required Permissions
 
@@ -85,10 +113,18 @@ Automatically generated from `package.json` and `userscript-headers.js` template
 
 When adding new features:
 
-1. Create module in `src/modules/`
-2. Import and initialize in `initializer.js`
+1. Create module in `src/modules/` with proper imports
+2. Import and initialize in `initializer.js` with error handling
 3. Add to cleanup sequence in `Initializer.stop()`
-4. Test by running `npm run watch` and refreshing Tampermonkey
+4. Use global logger: `const logger = getLogger().createChild('ModuleName')`
+5. Add platform-specific configuration if needed in `config.js`
+6. Test by running `node build-simple.js` and refreshing Tampermonkey
+
+### Adding Platform Support
+
+1. Add platform patterns to `PLATFORM_PATTERNS` in `platform-detector.js`
+2. Add platform-specific configuration in `config.js`
+3. Test platform detection and UI behavior
 
 ### File Organization
 
@@ -99,28 +135,42 @@ When adding new features:
 
 ### Testing Process
 
-1. Development: `npm run watch` for live reload
-2. Manual testing: Load `src/video-rotate-zoom-drag.user.js` directly in Tampermonkey
-3. Production: `npm run build` then use `dist/video-rotate-zoom-drag.user.js`
+1. Development: Load `src/video-rotate-zoom-drag.user.js` directly in Tampermonkey
+2. Production: `node build-simple.js` then use `dist/video-rotate-zoom-drag.user.js`
+3. Platform Testing: Test on different supported platforms to ensure proper detection
+4. UI Testing: Verify UI controls show/hide correctly based on platform configuration
+5. Log Monitoring: Check console for proper logging with timestamps and module prefixes
 
 ## Key Technical Details
 
 ### Video Element Targeting
 
-- **Primary selector**: `.bpx-player-video-wrap,.fp-player`
-- **Controls container**: `.bpx-player-control-bottom-center,.fp-controls`
-- Uses querySelector with fallbacks for different player versions
+Platform-specific selectors with fallbacks:
+- **Bilibili**: `.bpx-player-video-wrap,.fp-player` and `.bpx-player-control-bottom-center,.fp-controls`
+- **YouTube**: `.html5-video-container` and `.ytp-left-controls`
+- **Iwara**: `.video-js` and `.vjs-control-bar`
+- **Generic fallbacks**: Common video player selectors
+
+Selectors are automatically merged based on detected platform.
 
 ### Transform State Management
 
 ```javascript
 state = {
-  zoomLevel: 100, // 50-300 range
-  rotation: 0, // 0-360 degrees
-  offsetX: 0, // drag position
+  zoomLevel: 100, // 50-300 range, 5% steps
+  rotation: 0, // 0-360 degrees, 90° increments
+  offsetX: 0, // drag position in pixels
   offsetY: 0,
 };
 ```
+
+### Keyboard Shortcuts System
+
+- **Modifier Keys**: Ctrl-based shortcuts for primary functions
+- **Movement Keys**: Ctrl + Arrow keys for precise positioning
+- **Visual Feedback**: Real-time key display in logs
+- **Conflict Resolution**: No keyCode conflicts between features
+- **Fallback Handling**: Graceful degradation when controllers unavailable
 
 ### Event Coordination
 
@@ -128,12 +178,15 @@ state = {
 - **VideoTransform** applies CSS transforms via `element.style.transform`
 - **Controllers** manage UI updates and event listeners
 - **KeyboardShortcuts** provides programmatic access to all functions
+- **Platform Detection** triggers configuration adaptation
 
-### Error Handling
+### Error Handling & Logging
 
-- All modules wrapped in try-catch in Initializer
-- Graceful degradation when video elements not found
-- Console logging for debugging initialization issues
+- **Structured Logging**: Global logger with timestamps and module prefixes
+- **Graceful Degradation**: Missing UI/controllers don't break keyboard shortcuts
+- **Error Isolation**: Module failures don't affect other components
+- **Debug Information**: Detailed platform detection and initialization logs
+- **User-Friendly**: Clear console messages for troubleshooting
 
 ## Browser Compatibility
 

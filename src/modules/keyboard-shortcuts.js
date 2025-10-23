@@ -1,7 +1,8 @@
 /**
  * 键盘快捷键模块 - 管理键盘快捷键功能
  */
-import { WheelHandler } from './wheel-handler.js';
+import { WheelHandler } from "./wheel-handler.js";
+import { getLogger } from "./logger.js";
 
 export class KeyboardShortcuts {
   /**
@@ -12,12 +13,21 @@ export class KeyboardShortcuts {
    * @param {VideoTransform} videoTransform - 视频变换实例
    * @param {Object} config - 配置对象
    */
-  constructor(zoomController, rotationController, dragHandler, videoTransform, config) {
+  constructor(
+    zoomController,
+    rotationController,
+    dragHandler,
+    videoTransform,
+    config
+  ) {
     this.zoomController = zoomController;
     this.rotationController = rotationController;
     this.dragHandler = dragHandler;
     this.videoTransform = videoTransform;
     this.config = config;
+
+    // 获取全局日志器实例
+    this.logger = getLogger().createChild('KeyboardShortcuts');
 
     // 初始化滚轮处理器
     this.wheelHandler = new WheelHandler(zoomController, config);
@@ -58,31 +68,90 @@ export class KeyboardShortcuts {
     // 缩放快捷键
     if (this._checkShortcut(e, shortcuts.zoom.in)) {
       e.preventDefault();
-      this.zoomController.zoomIn();
+      if (this.zoomController) {
+        this.zoomController.zoomIn();
+      } else {
+        this.logger.warn('缩放控制器未初始化，无法执行缩放操作');
+      }
     } else if (this._checkShortcut(e, shortcuts.zoom.out)) {
       e.preventDefault();
-      this.zoomController.zoomOut();
+      if (this.zoomController) {
+        this.zoomController.zoomOut();
+      } else {
+        this.logger.warn('缩放控制器未初始化，无法执行缩放操作');
+      }
     }
 
     // 旋转快捷键
     if (this._checkShortcut(e, shortcuts.rotation.left)) {
       e.preventDefault();
-      this.rotationController.rotateLeft();
+      if (this.rotationController) {
+        this.rotationController.rotateLeft();
+      } else {
+        this.logger.warn('旋转控制器未初始化，无法执行旋转操作');
+      }
     } else if (this._checkShortcut(e, shortcuts.rotation.right)) {
       e.preventDefault();
-      this.rotationController.rotateRight();
+      if (this.rotationController) {
+        this.rotationController.rotateRight();
+      } else {
+        this.logger.warn('旋转控制器未初始化，无法执行旋转操作');
+      }
     }
 
     // 功能快捷键
     if (this._checkShortcut(e, shortcuts.actions.reset)) {
       e.preventDefault();
-      this.rotationController.reset();
+      if (this.rotationController) {
+        this.rotationController.reset();
+      } else {
+        this.logger.warn('旋转控制器未初始化，无法执行还原操作');
+        // 如果没有旋转控制器，手动重置视频变换
+        if (this.videoTransform) {
+          this.videoTransform.reset();
+          this.logger.info('已通过VideoTransform重置视频状态');
+        }
+      }
     }
 
     if (this._checkShortcut(e, shortcuts.actions.moveUp)) {
       e.preventDefault();
-      this._moveVideoUp();
+      this._moveVideoUp(e);
+    } else if (this._checkShortcut(e, shortcuts.actions.moveDown)) {
+      e.preventDefault();
+      this._moveVideoDown(e);
+    } else if (this._checkShortcut(e, shortcuts.actions.moveLeft)) {
+      e.preventDefault();
+      this._moveVideoLeft(e);
+    } else if (this._checkShortcut(e, shortcuts.actions.moveRight)) {
+      e.preventDefault();
+      this._moveVideoRight(e);
     }
+  }
+
+  /**
+   * 格式化按键显示
+   * @private
+   * @param {KeyboardEvent} e - 键盘事件
+   * @returns {string} 格式化的按键字符串
+   */
+  _formatKeyDisplay(e) {
+    const modifiers = [];
+    if (e.ctrlKey || e.metaKey) modifiers.push('Ctrl');
+    if (e.shiftKey) modifiers.push('Shift');
+    if (e.altKey) modifiers.push('Alt');
+
+    let keyName = '';
+    switch (e.key) {
+      case 'ArrowUp': keyName = '↑'; break;
+      case 'ArrowDown': keyName = '↓'; break;
+      case 'ArrowLeft': keyName = '←'; break;
+      case 'ArrowRight': keyName = '→'; break;
+      case ' ': keyName = 'Space'; break;
+      default: keyName = e.key.toUpperCase(); break;
+    }
+
+    return modifiers.length > 0 ? `${modifiers.join('+')}+${keyName}` : keyName;
   }
 
   /**
@@ -100,33 +169,35 @@ export class KeyboardShortcuts {
 
       for (const key of keys) {
         switch (key.toLowerCase()) {
-          case 'ctrl':
+          case "ctrl":
             if (!e.ctrlKey) match = false;
             break;
-          case 'shift':
+          case "shift":
             if (!e.shiftKey) match = false;
             break;
-          case 'alt':
+          case "alt":
             if (!e.altKey) match = false;
             break;
-          case 'space':
-            if (e.code !== 'Space') match = false;
+          case "space":
+            if (e.code !== "Space") match = false;
             break;
-          case 'arrowup':
-            if (e.key !== 'ArrowUp') match = false;
+          case "arrowup":
+            if (e.key !== "ArrowUp") match = false;
             break;
-          case 'arrowdown':
-            if (e.key !== 'ArrowDown') match = false;
+          case "arrowdown":
+            if (e.key !== "ArrowDown") match = false;
             break;
-          case 'arrowleft':
-            if (e.key !== 'ArrowLeft') match = false;
+          case "arrowleft":
+            if (e.key !== "ArrowLeft") match = false;
             break;
-          case 'arrowright':
-            if (e.key !== 'ArrowRight') match = false;
+          case "arrowright":
+            if (e.key !== "ArrowRight") match = false;
             break;
           default:
-            if (e.key.toLowerCase() !== key.toLowerCase() &&
-                e.code.toLowerCase() !== key.toLowerCase()) {
+            if (
+              e.key.toLowerCase() !== key.toLowerCase() &&
+              e.code.toLowerCase() !== key.toLowerCase()
+            ) {
               match = false;
             }
         }
@@ -136,7 +207,10 @@ export class KeyboardShortcuts {
     }
 
     // 检查键码
-    if (shortcutConfig.keyCodes && shortcutConfig.keyCodes.includes(e.keyCode)) {
+    if (
+      shortcutConfig.keyCodes &&
+      shortcutConfig.keyCodes.includes(e.keyCode)
+    ) {
       return true;
     }
 
@@ -149,7 +223,9 @@ export class KeyboardShortcuts {
    */
   _toggleFullscreen() {
     // 获取全屏按钮
-    const fullscreenBtn = document.querySelector(this.config.selectors.fullscreenBtn);
+    const fullscreenBtn = document.querySelector(
+      this.config.selectors.fullscreenBtn
+    );
     if (fullscreenBtn) {
       fullscreenBtn.click();
     }
@@ -158,16 +234,83 @@ export class KeyboardShortcuts {
   /**
    * 向上移动视频
    * @private
+   * @param {KeyboardEvent} e - 键盘事件
    */
-  _moveVideoUp() {
-    console.log("Shift+Up - 移动视频");
-    const { offsetY } = this.videoTransform.getOffset();
+  _moveVideoUp(e) {
+    const keyDisplay = this._formatKeyDisplay(e);
+    this.logger.info(`${keyDisplay} - 向上移动视频`);
+    const { offsetX, offsetY } = this.videoTransform.getOffset();
     const stepSize = this.config.parameters.move.stepSize;
-    this.videoTransform.setOffset(0, offsetY - stepSize);
+    this.videoTransform.setOffset(offsetX, offsetY - stepSize);
 
-    // 临时设置拖拽状态以显示抓取指针
-    this.dragHandler.startDrag(0, 0);
-    this.dragHandler.endDrag();
+    // 临时显示抓取指针作为视觉反馈
+    this._showMoveCursor();
+  }
+
+  /**
+   * 向下移动视频
+   * @private
+   * @param {KeyboardEvent} e - 键盘事件
+   */
+  _moveVideoDown(e) {
+    const keyDisplay = this._formatKeyDisplay(e);
+    this.logger.info(`${keyDisplay} - 向下移动视频`);
+    const { offsetX, offsetY } = this.videoTransform.getOffset();
+    const stepSize = this.config.parameters.move.stepSize;
+    this.videoTransform.setOffset(offsetX, offsetY + stepSize);
+
+    // 临时显示抓取指针作为视觉反馈
+    this._showMoveCursor();
+  }
+
+  /**
+   * 向左移动视频
+   * @private
+   * @param {KeyboardEvent} e - 键盘事件
+   */
+  _moveVideoLeft(e) {
+    const keyDisplay = this._formatKeyDisplay(e);
+    this.logger.info(`${keyDisplay} - 向左移动视频`);
+    const { offsetX, offsetY } = this.videoTransform.getOffset();
+    const stepSize = this.config.parameters.move.stepSize;
+    this.videoTransform.setOffset(offsetX - stepSize, offsetY);
+
+    // 临时显示抓取指针作为视觉反馈
+    this._showMoveCursor();
+  }
+
+  /**
+   * 向右移动视频
+   * @private
+   * @param {KeyboardEvent} e - 键盘事件
+   */
+  _moveVideoRight(e) {
+    const keyDisplay = this._formatKeyDisplay(e);
+    this.logger.info(`${keyDisplay} - 向右移动视频`);
+    const { offsetX, offsetY } = this.videoTransform.getOffset();
+    const stepSize = this.config.parameters.move.stepSize;
+    this.videoTransform.setOffset(offsetX + stepSize, offsetY);
+
+    // 临时显示抓取指针作为视觉反馈
+    this._showMoveCursor();
+  }
+
+  /**
+   * 显示移动时的视觉反馈
+   * @private
+   */
+  _showMoveCursor() {
+    if (!this.videoTransform.videoContainer) return;
+
+    const originalCursor = this.videoTransform.videoContainer.style.cursor;
+    this.videoTransform.videoContainer.style.cursor = "grabbing";
+
+    // 200ms后恢复原指针样式
+    setTimeout(() => {
+      if (this.videoTransform.videoContainer) {
+        this.videoTransform.videoContainer.style.cursor = originalCursor || "default";
+      }
+    }, 200);
   }
 
   /**
@@ -176,29 +319,54 @@ export class KeyboardShortcuts {
    */
   triggerShortcut(shortcut) {
     switch (shortcut) {
-      case 'zoomIn':
-        this.zoomController.zoomIn();
+      case "zoomIn":
+        if (this.zoomController) {
+          this.zoomController.zoomIn();
+        } else {
+          this.logger.warn('缩放控制器未初始化，无法执行缩放操作');
+        }
         break;
-      case 'zoomOut':
-        this.zoomController.zoomOut();
+      case "zoomOut":
+        if (this.zoomController) {
+          this.zoomController.zoomOut();
+        } else {
+          this.logger.warn('缩放控制器未初始化，无法执行缩放操作');
+        }
         break;
-      case 'rotateLeft':
-        this.rotationController.rotateLeft();
+      case "rotateLeft":
+        if (this.rotationController) {
+          this.rotationController.rotateLeft();
+        } else {
+          this.logger.warn('旋转控制器未初始化，无法执行旋转操作');
+        }
         break;
-      case 'rotateRight':
-        this.rotationController.rotateRight();
+      case "rotateRight":
+        if (this.rotationController) {
+          this.rotationController.rotateRight();
+        } else {
+          this.logger.warn('旋转控制器未初始化，无法执行旋转操作');
+        }
         break;
-      case 'reset':
-        this.rotationController.reset();
+      case "reset":
+        if (this.rotationController) {
+          this.rotationController.reset();
+        } else {
+          this.logger.warn('旋转控制器未初始化，无法执行还原操作');
+          // 如果没有旋转控制器，手动重置视频变换
+          if (this.videoTransform) {
+            this.videoTransform.reset();
+            this.logger.info('已通过VideoTransform重置视频状态');
+          }
+        }
         break;
-      case 'fullscreen':
+      case "fullscreen":
         this._toggleFullscreen();
         break;
-      case 'moveUp':
+      case "moveUp":
         this._moveVideoUp();
         break;
       default:
-        console.warn(`未知的快捷键: ${shortcut}`);
+        this.logger.warn(`未知的快捷键: ${shortcut}`);
     }
   }
 

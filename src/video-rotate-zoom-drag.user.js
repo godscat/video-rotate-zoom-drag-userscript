@@ -1,4 +1,5 @@
 import { Initializer } from "./modules/initializer.js";
+import { getLogger } from "./modules/logger.js";
 
 /**
  * 视频旋转缩放拖拽工具 - 重构版本
@@ -29,12 +30,14 @@ import { Initializer } from "./modules/initializer.js";
    */
   function main() {
     try {
-      console.log("开始初始化视频控制器，将自动检测平台");
+      const logger = getLogger().createChild('Main');
+      logger.info("开始初始化视频控制器，将自动检测平台");
       initializer = new Initializer(); // 不传参数，让 Initializer 自动检测平台
       initializer.start();
-      console.log("视频控制器初始化成功，检测到平台:", initializer.platform);
+      logger.info(`视频控制器初始化成功，检测到平台: ${initializer.platform}`);
     } catch (error) {
-      console.error("视频控制器初始化失败:", error);
+      const logger = getLogger().createChild('Main');
+      logger.error("视频控制器初始化失败:", error);
     }
   }
 

@@ -126,7 +126,7 @@ const CONFIG = {
     },
     // 移动配置
     move: {
-      stepSize: 200, // Shift+Up 移动的像素
+      stepSize: 20, // Shift+Up 移动的像素
     },
   },
   eventHandling: {
@@ -164,36 +164,40 @@ const CONFIG = {
     // 缩放快捷键
     zoom: {
       in: {
-        keys: ["ctrl", "+"], // 主要快捷键
-        alternates: ["ctrl", "="], // 备用快捷键
-        keyCodes: [38], // 上箭头键
+        keys: ["shift", "+"],
       },
       out: {
-        keys: ["ctrl", "-"],
-        keyCodes: [40], // 下箭头键
+        keys: ["shift", "-"],
       },
     },
     // 旋转快捷键
     rotation: {
       left: {
-        keys: ["ctrl", "l"],
-        keyCodes: [37], // 左箭头键
+        keys: ["shift", "l"],
       },
       right: {
-        keys: ["ctrl", "r"],
-        keyCodes: [39], // 右箭头键
+        keys: ["shift", "r"],
       },
     },
     // 功能快捷键
     actions: {
       reset: {
-        keys: ["ctrl", "0"],
+        keys: ["shift", "0"],
       },
       fullscreen: {
-        keys: ["ctrl", "space"],
+        keys: ["shift", "space"],
       },
       moveUp: {
         keys: ["shift", "arrowup"],
+      },
+      moveDown: {
+        keys: ["shift", "arrowdown"],
+      },
+      moveLeft: {
+        keys: ["shift", "arrowleft"],
+      },
+      moveRight: {
+        keys: ["shift", "arrowright"],
       },
     },
   },
@@ -201,7 +205,7 @@ const CONFIG = {
   // 滚轮缩放配置
   wheel: {
     enabled: true, // 是否启用滚轮缩放
-    modifier: "ctrl", // 修饰键: 'ctrl', 'shift', 'alt'
+    modifier: "shift", // 修饰键: 'ctrl', 'shift', 'alt'
     preventPageScroll: true, // 阻止页面滚动
   },
 
@@ -210,6 +214,13 @@ const CONFIG = {
     enabled: true, // 是否启用拖拽功能
     modifier: null, // 修饰键: 'ctrl', 'shift', 'alt', null 表示不需要修饰键
     preventDefault: true, // 是否阻止默认行为
+  },
+
+  // UI 控制配置
+  ui: {
+    controls: {
+      enabled: true, // 是否显示控制按钮
+    },
   },
 
   // 平台特定配置
@@ -236,6 +247,24 @@ const CONFIG = {
       // YouTube拖拽配置
       drag: {
         modifier: "ctrl", // YouTube需要按住 Ctrl 才能拖拽
+      },
+    },
+    iwara: {
+      // Iwara特定配置
+      selectors: {
+        controlsContainer: ".vjs-control-bar",
+        videoContainer: ".video-js",
+        fullscreenBtn: ".vjs-fullscreen-control",
+      },
+      // Iwara拖拽配置
+      drag: {
+        modifier: "ctrl", // Iwara需要按住 Ctrl 才能拖拽
+      },
+      // Iwara UI 配置
+      ui: {
+        controls: {
+          enabled: false, // Iwara 平台默认关闭控制按钮
+        },
       },
     },
     // 可以继续添加其他平台配置
@@ -266,6 +295,10 @@ function getPlatformConfig(platform = CONFIG.platform) {
     drag: {
       ...baseConfig.drag,
       ...(platformConfig.drag || {}),
+    },
+    ui: {
+      ...baseConfig.ui,
+      ...(platformConfig.ui || {}),
     },
     // 合并平台特定的参数和事件处理配置
     ...(platformConfig.parameters && {

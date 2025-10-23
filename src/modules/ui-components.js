@@ -7,10 +7,15 @@ export class UIComponents {
   /**
    * 创建控制按钮UI
    * @param {Object} config - 配置对象
-   * @returns {Object} 包含所有控制按钮元素的对象
+   * @returns {Object|null} 包含所有控制按钮元素的对象，如果UI被禁用则返回null
    */
   static createControlButtons(config) {
-    const { selectors, cssClasses, uiText, parameters } = config;
+    const { selectors, cssClasses, uiText, parameters, ui } = config;
+
+    // 检查UI控制按钮是否被禁用
+    if (!ui.controls.enabled) {
+      return null;
+    }
 
     const controlsContainer = document.querySelector(selectors.controlsContainer);
     if (!controlsContainer || document.getElementById(selectors.customControlsId))

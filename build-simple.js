@@ -73,7 +73,9 @@ class SimpleBuilder {
       /export\s+(class|const|let|var|function)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g,
       "$1 $2"
     );
-    content = content.replace(/export\s*\{([^}]+)\}/g, "// exports: {$1}");
+
+    // 移除多行 export { ... } 语句
+    content = content.replace(/export\s*\{[^}]*\}/gs, "// exports removed");
 
     // 移除 export default
     content = content.replace(/export\s+default\s+/g, "// exported: ");
@@ -84,22 +86,32 @@ class SimpleBuilder {
     return content;
   }
 
+  // 自动获取模块列表
+  getModuleList() {
+    const modulesDir = "./src/modules";
+
+    if (!fs.existsSync(modulesDir)) {
+      console.warn("⚠️  modules 目录不存在:", modulesDir);
+      return [];
+    }
+
+    const files = fs.readdirSync(modulesDir);
+
+    // 过滤出 .js 文件并按文件名排序
+    const modules = files
+      .filter(file => file.endsWith('.js'))
+      .sort();
+
+    console.log("📦 发现模块文件:", modules);
+    return modules;
+  }
+
   // 构建主入口文件
   buildMain() {
     let main = fs.readFileSync("./src/video-rotate-zoom-drag.user.js", "utf8");
 
-    // 添加所有模块代码到前面
-    const modules = [
-      "config.js",
-      "styles.js",
-      "ui-components.js",
-      "video-transform.js",
-      "zoom-controller.js",
-      "rotation-controller.js",
-      "drag-handler.js",
-      "keyboard-shortcuts.js",
-      "initializer.js",
-    ];
+    // 自动获取所有模块
+    const modules = this.getModuleList();
 
     let moduleCode = "";
     modules.forEach((module) => {

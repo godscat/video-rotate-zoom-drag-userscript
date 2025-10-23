@@ -1,6 +1,10 @@
 /**
  * 平台检测模块 - 根据URL自动检测当前平台
  */
+import { getLogger } from "./logger.js";
+
+// 获取全局日志器实例
+const logger = getLogger().createChild('PlatformDetector');
 
 /**
  * 平台配置映射
@@ -35,7 +39,13 @@ const PLATFORM_PATTERNS = {
       /https?:\/\/www\.iq\.com\//
     ],
     name: 'iQIYI'
-  }
+  },
+  iwara: {
+    patterns: [
+      /https?:\/\/www\.iwara\.tv\//
+    ],
+    name: 'Iwara'
+  },
 };
 
 /**
@@ -48,14 +58,14 @@ function detectPlatform() {
   for (const [platform, config] of Object.entries(PLATFORM_PATTERNS)) {
     for (const pattern of config.patterns) {
       if (pattern.test(currentUrl)) {
-        console.log(`检测到平台: ${config.name} (${platform})`);
+        logger.info(`检测到平台: ${config.name} (${platform})`);
         return platform;
       }
     }
   }
 
   // 默认返回 bilibili
-  console.log('未检测到已知平台，使用默认 bilibili');
+  logger.warn('未检测到已知平台，使用默认 bilibili');
   return 'bilibili';
 }
 

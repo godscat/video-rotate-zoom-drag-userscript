@@ -1,6 +1,8 @@
 /**
  * 拖拽功能模块 - 管理视频的拖拽移动功能
  */
+import { getLogger } from "./logger.js";
+
 export class DragHandler {
   /**
    * 初始化拖拽处理器
@@ -11,6 +13,9 @@ export class DragHandler {
     this.videoTransform = videoTransform;
     this.videoContainer = videoTransform.videoContainer;
     this.config = config;
+
+    // 获取全局日志器实例
+    this.logger = getLogger().createChild('DragHandler');
 
     this.state = {
       isDragging: false,
@@ -35,10 +40,7 @@ export class DragHandler {
     const eventConfig = this.config.eventHandling || {};
     const useCapture = eventConfig.captureEvents || false;
 
-    console.log(
-      `[${this.config.platform}] 绑定拖拽事件，使用捕获模式:`,
-      useCapture
-    );
+    this.logger.info(`绑定拖拽事件，使用捕获模式: ${useCapture}`);
 
     // 鼠标按下事件
     this.videoContainer.addEventListener(
@@ -105,10 +107,7 @@ export class DragHandler {
 
     this.videoContainer.style.cursor = "grabbing";
 
-    console.log(`[${this.config.platform}] 开始拖拽，修饰键: ${dragModifier || '无'}，初始位置:`, {
-      startX: this.state.startX,
-      startY: this.state.startY,
-    });
+    this.logger.info(`开始拖拽，修饰键: ${dragModifier || '无'}，初始位置: (${this.state.startX}, ${this.state.startY})`);
   }
 
   /**
