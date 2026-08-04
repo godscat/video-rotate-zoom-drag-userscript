@@ -131,7 +131,9 @@ node --check dist/video-rotate-zoom-drag.user.js   # 语法校验
 
 ## 📄 许可证
 
-MIT License
+本项目基于 **GPL-3.0-or-later** 发布。
+
+部分代码（悬浮浮层架构、`calculateScale`、`shouldSwitchVideo`、动态 `<style>` 应用变换等）衍生自 ryu-dayo 的 [chimo-chimo-loop](https://github.com/ryu-dayo/chimo-chimo-loop)（GPL-3.0），原始思路来自浮云里的浮云。故整体采用 GPL，详见 [LICENSE](./LICENSE)。
 
 ## 🙏 致谢 / Credits
 
@@ -141,7 +143,8 @@ MIT License
   - 主页：https://space.bilibili.com/1531643081
   - 源码（B站专栏）：https://www.bilibili.com/opus/1078276575030411266
 
-- **ryu-dayo** — 悬浮工具条架构灵感（chimo-chimo-loop）
+- **ryu-dayo** — 悬浮工具条架构灵感（chimo-chimo-loop，GPL-3.0）
+  - 本项目的悬浮架构与部分函数（calculateScale / shouldSwitchVideo 等）直接源自该项目
   - 源码：https://github.com/ryu-dayo/chimo-chimo-loop
 
 - **CC11001100** — UserScript 工程模板（JSREI/userscript-template）

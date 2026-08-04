@@ -31,7 +31,7 @@
     "clean:dist-folder": "rimraf ./dist"
   },
   "author": "七十二洞天,浮云里的浮云,ryu-dayo",
-  "license": "MIT",
+  "license": "GPL-3.0-or-later",
   "devDependencies": {
     "webpack": "^5.88.2",
     "webpack-cli": "^5.1.4",
