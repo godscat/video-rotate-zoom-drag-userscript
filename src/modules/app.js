@@ -63,11 +63,11 @@ class App {
    * 启动：全局事件监听 + 首次扫描
    */
   start() {
-    // play 事件：视频开始播放时激活
+    // play 事件：视频开始播放时激活（过滤信息流封面预览等小视频）
     document.addEventListener(
       'play',
       (e) => {
-        if (e.target instanceof HTMLVideoElement) {
+        if (e.target instanceof HTMLVideoElement && this._isPrimaryVideo(e.target)) {
           this.activate(e.target);
         }
         this.isPaused = false;
@@ -111,11 +111,34 @@ class App {
   }
 
   /**
-   * 扫描页面上的 video
+   * 扫描页面上的 video：选择尺寸达标的最大那个（跳过信息流封面预览）
    */
   scan() {
-    const v = document.querySelector('video');
-    if (v) this.activate(v);
+    const videos = document.querySelectorAll('video');
+    let best = null;
+    let bestArea = 0;
+    videos.forEach((v) => {
+      if (!v.isConnected) return;
+      if (!this._isPrimaryVideo(v)) return;
+      const area = (v.clientWidth || 0) * (v.clientHeight || 0);
+      if (area > bestArea) {
+        bestArea = area;
+        best = v;
+      }
+    });
+    if (best) this.activate(best);
+  }
+
+  /**
+   * 判断是否为"主视频"：渲染尺寸达到阈值，且未隐藏。
+   * 用于过滤 B 站等信息流 hover 出来的小尺寸预览视频。
+   */
+  _isPrimaryVideo(v) {
+    if (!v || !v.isConnected) return false;
+    const w = v.clientWidth;
+    const h = v.clientHeight;
+    if (!w || !h) return false;
+    return w >= CONFIG.video.minActivateWidth && h >= CONFIG.video.minActivateHeight;
   }
 
   /**
@@ -144,7 +167,10 @@ class App {
    * 激活目标视频
    */
   activate(video) {
-    if (!video || !this.shouldSwitchVideo(video)) return;
+    if (!video) return;
+    // 尺寸不达标（信息流预览等）不激活
+    if (!this._isPrimaryVideo(video)) return;
+    if (!this.shouldSwitchVideo(video)) return;
 
     this.activeVideo = video;
     this.stage = video.parentElement || video;

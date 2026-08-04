@@ -133,3 +133,4 @@ dist
 
 # claude code
 .claude/
+.zed/

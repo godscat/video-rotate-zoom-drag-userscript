@@ -1,196 +1,158 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+本文件为 AI 助手（Claude Code / opencode 等）在本仓库工作时提供指引。`AGENTS.md` 是指向本文件的符号链接。
 
-## Project Overview
+## 项目概览
 
-多平台视频增强用户脚本项目，为多个视频平台的播放器添加缩放、旋转、拖拽移动和还原功能。采用模块化 ES6 架构，使用自定义构建脚本生成兼容 Tampermonkey/Greasemonkey 的用户脚本。支持B站、YouTube、Youku、iQIYI、Iwara等平台。
+多平台视频增强用户脚本：为视频播放器添加 **缩放 / 双向旋转 / 拖拽平移 / 滚轮缩放**，并提供一个跟随视频的玻璃风悬浮工具条。
 
-## Build System
+**核心架构特点（参考 chimo-chimo-loop，重写于 v2）**：
 
-### Available Commands
+- **零平台选择器**：不依赖任何站点 CSS 选择器，直接 `document.querySelector('video')` + `play` 事件发现视频，`@match *://*/*` 通配所有站点。
+- **悬浮浮层 UI**：控制条为 `position:fixed` 容器挂到 `body`，通过 `getBoundingClientRect()` 实时跟随视频父元素（stage）位置——而非塞进平台自己的控制栏。
+- **变换作用于 `<video>` 本身**：通过动态 `<style>` 标签 + `video[data-vrz-active]` 属性选择器注入 `transform`，不污染 inline style。
+- **90° 旋转无黑边**：`calculateScale()` 按 `object-fit:contain` 反推缩放比例。
+- **每站点配置**：拖拽/滚轮的修饰键组合按 `location.hostname` 存入 IndexedDB。
+- **尺寸门槛**：渲染尺寸 < 400×225 的视频（如信息流 hover 预览）不激活，避免误触。
+
+## 构建系统
+
+### 命令
 
 ```bash
-pnpm run build    # 生产环境构建
-pnpm run watch    # 开发环境监听模式
-pnpm run dev      # 开发模式提示
+pnpm run build    # 生产构建
+pnpm run watch    # 监听模式
+pnpm run dev      # 开发提示
+node build-simple.js   # 直接构建（等价 build）
 ```
 
-### Package Manager
+### 包管理器
 
-- **pnpm** is configured as the package manager (version 10.18.1+)
+- **pnpm**（package.json 已声明，版本 10.18.1+）
 
-### Build Output
+### 构建产物
 
-- **Development**: Uses `src/video-rotate-zoom-drag.user.js` directly in Tampermonkey
-- **Production**: Outputs readable, non-minified code to `dist/video-rotate-zoom-drag.user.js` via simple build script
-- **Entry Point**: `src/video-rotate-zoom-drag.user.js`
-- **Build Tool**: Custom `build-simple.js` script that automatically discovers modules
+- **入口**：`src/video-rotate-zoom-drag.user.js`（IIFE，`import { App }`）
+- **构建工具**：自定义 `build-simple.js`——自动发现 `src/modules/*.js`，**按文件名字典序拼接**，剥离 `import/export`，再拼上主入口。
+- **开发态**：可直接在 Tampermonkey 加载 `src/video-rotate-zoom-drag.user.js`（需 ES module 支持）。
+- **生产态**：输出可读、未压缩的 `dist/video-rotate-zoom-drag.user.js`。
 
-## Architecture
+> ⚠️ 拼接顺序由文件名字典序决定。跨模块引用必须满足：(1) 函数声明会被提升，可跨文件用；(2) `const/class` 存在 TDZ，**禁止在模块顶层引用其它模块的 const/class**，只能在构造函数/方法内（运行期）引用——因为 `new App()` 在主入口（最后）才执行。
 
-### Core Module System
+## 架构
 
-The project follows a modular ES6 architecture where each major feature is separated into its own module:
+### 模块清单（src/modules/，共 13 个）
 
-- **Initializer** (`src/modules/initializer.js`) - Main coordinator that manages initialization and lifecycle of all modules. Handles SPA page dynamic monitoring via MutationObserver and platform-specific configurations.
-- **VideoTransform** (`src/modules/video-transform.js`) - Core video transformation engine managing DOM elements, transforms (scale/rotate/translate), and state management.
-- **Platform Detection** (`src/modules/platform-detector.js`) - Automatic platform detection supporting bilibili, youtube, youku, iqiyi, iwara.
-- **Config Management** (`src/modules/config.js`) - Centralized configuration with platform-specific overrides and UI control settings.
-- **Controllers** - Feature-specific controllers:
-  - `ZoomController` - Zoom level management (50%-300%, 5% steps)
-  - `RotationController` - Rotation management (90° increments)
-  - `DragHandler` - Drag functionality with platform-specific modifier keys
-  - `WheelHandler` - Mouse wheel zoom handling with modifier key support
-- **Interaction Layer**:
-  - `UIComponents` - DOM element creation and management with conditional display
-  - `KeyboardShortcuts` - Comprehensive keyboard event handling including movement
-  - `Styles` - CSS injection via GM_addStyle
-- **Logging System** (`src/modules/logger.js`) - Global logging with timestamps and module prefixes
+| 文件 | 职责 |
+|------|------|
+| `config.js` | 全局默认配置：缩放/旋转/移动参数、激活尺寸阈值、拖拽/滚轮默认修饰键（`modifiers` 数组）、`e.code` 快捷键 |
+| `logger.js` | 日志单例（`getLogger()`），带时间戳与模块前缀，支持 `createChild()` |
+| `styles.js` | 玻璃浮层 CSS（静态字符串），通过 `<style>` 注入 |
+| `transform-engine.js` | **唯一状态源**：持有 zoom/rotation/offset；`apply()` 用动态 `<style>` 应用变换；`calculateScale()` 处理 90°；ResizeObserver 监听尺寸重算；提供 zoomIn/zoomOut/rotateLeft/rotateRight/move/reset |
+| `video-scanner`（合并于 app） | 视频发现由 `App.scan()` 承担 |
+| `ui-overlay.js` | 悬浮控制条：主栏（缩放/旋转/还原/展开）+ 次级面板（方向组↑↓←→长按连发 / 配置 / 帮助 / 缩回）；`reposition()` 跟随；hover 显隐 |
+| `drag-handler.js` | document 级 mousedown/move/up；读 `site-config` 修饰键；在 stage 内拖拽，排除按钮等控件；拖拽时关过渡保证跟手 |
+| `wheel-handler.js` | document 级 wheel（capture）；读 `site-config` 修饰键；仅视频区域内触发 |
+| `keyboard-shortcuts.js` | `e.code` 匹配（规避 Shift 改字符问题）；缩放/旋转/移动/还原/全屏 |
+| `site-config.js` | 运行时站点配置：默认值 + IndexedDB 异步加载合并 + `subscribe()`；`checkModifiers()` 组合判定（所选键全部按下）；`getDragConfig()`/`getZoomConfig()`；min-1 强制 |
+| `storage.js` | IndexedDB 封装。DB `vrz-config`（v1），两个 store：`siteConfig`（keyPath=host）+ `meta`（keyPath=key，库说明） |
+| `config-panel.js` | 修饰键配置模态：拖拽区 + 缩放区，各为「启用/禁用 + alt/ctrl/shift 多选」；min-1 校验（取消最后一个会抖动提示）；写回 site-config |
+| `help-panel.js` | 快捷键只读浮层 |
+| `app.js` | **协调器**（取代旧 Initializer）：视频发现/SPA 监听/位置同步/显隐控制/清理；装配所有模块 |
 
-### Module Dependencies
+### 模块依赖
 
 ```
-Initializer
-├── PlatformDetector (platform detection)
-├── Config (configuration management)
-├── VideoTransform (core state)
-├── UIComponents (conditional creation)
-├── ZoomController → VideoTransform
-├── RotationController → VideoTransform
-├── DragHandler → VideoTransform
-├── WheelHandler → ZoomController
-├── KeyboardShortcuts → all controllers
-├── Logger (global logging)
-└── Styles (independent)
+App（协调器）
+├── Styles（样式注入）
+├── SiteConfig（站点配置，异步 IndexedDB）
+│   └── storage.js（IndexedDB）
+├── TransformEngine（核心状态，变换应用）
+├── UIOverlay（悬浮 UI，回调 onConfig/onHelp）
+│   └── ConfigPanel / HelpPanel
+├── DragHandler    → 读 SiteConfig + 写 TransformEngine
+├── WheelHandler   → 读 SiteConfig + 写 TransformEngine
+└── KeyboardShortcuts → 写 TransformEngine
 ```
 
-### Global Systems
+### 关键设计模式
 
-- **Logger**: Singleton pattern shared across all modules with child logger creation
-- **Config**: Platform-aware configuration system with automatic merging
-- **Event Coordination**: Centralized through Initializer with proper cleanup
+- **单一职责**：每个模块只管一件事。
+- **TransformEngine 是唯一真相源**：所有状态变更经它，`onChange` 回调通知 UI 刷新。
+- **事件驱动 + 全局监听**：Drag/Wheel/Keyboard 在 document 上监听一次，通过 `app.activeVideo` 取当前视频，无需随视频切换重绑。
+- **生命周期**：各模块提供 `destroy()`；App 提供 `stop()` 统一清理。
+- **SPA 感知**：MutationObserver 监听 body，防抖后 `scan()`；`play` 事件即时激活。
+- **平台无关**：完全不用平台选择器；差异化需求（如拖拽修饰键）通过每站点配置实现。
 
-### Key Design Patterns
+## 用户脚本配置
 
-- **Single Responsibility**: Each module handles one specific concern
-- **State Management**: VideoTransform is the single source of truth for video state
-- **Event-Driven**: Controllers emit events, VideoTransform handles state changes
-- **Lifecycle Management**: Every module provides destroy() for cleanup
-- **SPA-Aware**: Uses MutationObserver to detect page changes and reinitialize
+### @match
 
-## Userscript Configuration
+`*://*/*` —— 通配所有站点。脚本自动发现 `<video>`，按站点独立保存配置。
 
-### Supported Sites
+### @grant
 
-Auto-detected platforms with domain matching:
-- **Bilibili**: `https://www.bilibili.com/*`, `https://bangumi.bilibili.com/*`
-- **YouTube**: `https://www.youtube.com/*`, `https://youtu.be/*`, `https://m.youtube.com/*`
-- **Youku**: `https://www.youku.com/*`, `https://v.youku.com/*`
-- **iQIYI**: `https://www.iqiyi.com/*`, `https://www.iq.com/*`
-- **Iwara**: `https://iwara.tv/*`
+- `GM_addStyle`（保留，实际用 `<style>` 标签注入亦可）
 
-### Platform-Specific Features
+### @run-at
 
-- **UI Controls**: Enabled by default, disabled on Iwara for cleaner interface
-- **Drag Modifiers**:
-  - B站/YouTube/Iwara: Requires Ctrl key
-  - Other platforms: No modifier required
-- **Selectors**: Platform-specific CSS selectors for video containers and controls
+`document-start` —— 主入口在 `load` 后执行 `new App()`，保证 `body` 就绪。
 
-### Required Permissions
+## 数据持久化（IndexedDB）
 
-- `GM_addStyle` for CSS injection
-- `document-start` injection timing
-
-### Header Configuration
-
-Automatically generated from `package.json` and `userscript-headers.js` template during build.
-
-## Development Workflow
-
-### Module Development
-
-When adding new features:
-
-1. Create module in `src/modules/` with proper imports
-2. Import and initialize in `initializer.js` with error handling
-3. Add to cleanup sequence in `Initializer.stop()`
-4. Use global logger: `const logger = getLogger().createChild('ModuleName')`
-5. Add platform-specific configuration if needed in `config.js`
-6. Test by running `node build-simple.js` and refreshing Tampermonkey
-
-### Adding Platform Support
-
-1. Add platform patterns to `PLATFORM_PATTERNS` in `platform-detector.js`
-2. Add platform-specific configuration in `config.js`
-3. Test platform detection and UI behavior
-
-### File Organization
-
-- **Main entry**: `src/video-rotate-zoom-drag.user.js` (IIFE wrapper)
-- **Modules**: All in `src/modules/` with clear naming convention
-- **Legacy code**: `origin-source/video.util.js` (preserved for reference)
-- **Refactored code**: `src/video-rotate-zoom-drag.user.js` (new modular version)
-
-### Testing Process
-
-1. Development: Load `src/video-rotate-zoom-drag.user.js` directly in Tampermonkey
-2. Production: `node build-simple.js` then use `dist/video-rotate-zoom-drag.user.js`
-3. Platform Testing: Test on different supported platforms to ensure proper detection
-4. UI Testing: Verify UI controls show/hide correctly based on platform configuration
-5. Log Monitoring: Check console for proper logging with timestamps and module prefixes
-
-## Key Technical Details
-
-### Video Element Targeting
-
-Platform-specific selectors with fallbacks:
-- **Bilibili**: `.bpx-player-video-wrap,.fp-player` and `.bpx-player-control-bottom-center,.fp-controls`
-- **YouTube**: `.html5-video-container` and `.ytp-left-controls`
-- **Iwara**: `.video-js` and `.vjs-control-bar`
-- **Generic fallbacks**: Common video player selectors
-
-Selectors are automatically merged based on detected platform.
-
-### Transform State Management
-
-```javascript
-state = {
-  zoomLevel: 100, // 50-300 range, 5% steps
-  rotation: 0, // 0-360 degrees, 90° increments
-  offsetX: 0, // drag position in pixels
-  offsetY: 0,
-};
+```
+DB: vrz-config (version 1)
+├── store: siteConfig   keyPath: host
+│     { host, drag:{enabled,modifiers}, zoom:{enabled,modifiers} }
+└── store: meta         keyPath: key
+      { key:'about', purpose, detail, stores, createdAt }   ← 库说明，devtools 可见
 ```
 
-### Keyboard Shortcuts System
+- 按 `location.hostname` 做 key，天然每站点隔离。
+- `site-config.js` 加载失败时优雅降级到默认值（`modifiers: ['shift']`）。
+- **重要**：`onupgradeneeded` 内不可 `db.transaction()` 另起新事务（会抛 `InvalidStateError`），必须复用 `req.transaction` 或 `createObjectStore` 返回的句柄。
 
-- **Modifier Keys**: Ctrl-based shortcuts for primary functions
-- **Movement Keys**: Ctrl + Arrow keys for precise positioning
-- **Visual Feedback**: Real-time key display in logs
-- **Conflict Resolution**: No keyCode conflicts between features
-- **Fallback Handling**: Graceful degradation when controllers unavailable
+## 配置与快捷键默认值
 
-### Event Coordination
+- **缩放**：50%–300%，步长 5%
+- **旋转**：90° 双向
+- **移动**：步长 20px
+- **激活尺寸门槛**：`minActivateWidth=400, minActivateHeight=225`
+- **拖拽/滚轮默认修饰键**：`['shift']`（可组合 alt/ctrl/shift，min-1）
+- **快捷键**（`e.code`）：
+  - `Shift + Equal/Minus` 缩放
+  - `Shift + KeyL/KeyR` 旋转
+  - `Shift + Digit0` 还原
+  - `Shift + Space` 全屏
+  - `Shift + Arrow*` 移动
 
-- **Initializer** creates MutationObserver for SPA navigation
-- **VideoTransform** applies CSS transforms via `element.style.transform`
-- **Controllers** manage UI updates and event listeners
-- **KeyboardShortcuts** provides programmatic access to all functions
-- **Platform Detection** triggers configuration adaptation
+## 开发流程
 
-### Error Handling & Logging
+### 新增功能
 
-- **Structured Logging**: Global logger with timestamps and module prefixes
-- **Graceful Degradation**: Missing UI/controllers don't break keyboard shortcuts
-- **Error Isolation**: Module failures don't affect other components
-- **Debug Information**: Detailed platform detection and initialization logs
-- **User-Friendly**: Clear console messages for troubleshooting
+1. 在 `src/modules/` 新建/修改模块，正确 `import`。
+2. 如需协调，在 `app.js` 装配，并在 `stop()` 加入清理。
+3. 用全局 logger：`getLogger().createChild('ModuleName')`。
+4. 注意拼接顺序约束（见上文 ⚠️）。
+5. `node build-simple.js` 构建，`node --check dist/video-rotate-zoom-drag.user.js` 校验语法。
 
-## Browser Compatibility
+### 文件组织
 
-- **Modern browsers**: ES6 modules support required
-- **Userscript managers**: Tampermonkey, Greasemonkey
-- **Permissions**: Requires GM_addStyle API
-- **DOM APIs**: Uses standard DOM querySelector and CSS transforms
+- **主入口**：`src/video-rotate-zoom-drag.user.js`
+- **模块**：`src/modules/*.js`
+- **构建产物**：`dist/video-rotate-zoom-drag.user.js`
+- **用户脚本头模板**：`userscript-headers.js`（含致谢）
+- **参考来源**：`example-source/chimo-chimo-loop.js`、`origin-source/video.util.js`
+
+## 测试
+
+1. **开发**：Tampermonkey 直接加载 `src/video-rotate-zoom-drag.user.js`。
+2. **生产**：`node build-simple.js` 后用 `dist/` 版本。
+3. **重点验证**：视频发现、旋转 90° 无黑边、拖拽/滚轮修饰键、配置面板持久化、信息流预览不被激活。
+4. 看控制台日志：`[时间] [VideoController:模块] [级别] ...`。
+
+## 浏览器兼容性
+
+- 现代浏览器（ES module、IndexedDB、ResizeObserver、`requestVideoFrameCallback` 可选）
+- Tampermonkey / Greasemonkey
+- 标准 DOM API + CSS transform

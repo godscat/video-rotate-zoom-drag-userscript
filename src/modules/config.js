@@ -29,6 +29,12 @@ const CONFIG = {
     stepSize: 20,
   },
 
+  // 视频激活阈值：渲染尺寸小于此值的视频（如信息流封面预览）不激活、不显示工具条
+  video: {
+    minActivateWidth: 400,
+    minActivateHeight: 225,
+  },
+
   // 拖拽配置（修饰键组合，默认 shift；按站点可配置并持久化）
   drag: {
     enabled: true,

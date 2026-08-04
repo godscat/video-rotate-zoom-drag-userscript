@@ -1,7 +1,7 @@
 {
   "name": "multi-platform-video-enhance",
   "version": "2.0.0",
-  "description": "多平台视频增强：缩放、旋转、拖拽移动和还原功能，支持B站、YouTube、Youku、iQIYI、Iwara等平台",
+  "description": "多平台视频增强：缩放、旋转、拖拽移动和还原功能",
   "main": "src/video-rotate-zoom-drag.user.js",
   "repository": "https://github.com/JSREI/userscript-template.git",
   "namespace": "https://github.com/JSREI/userscript-template.git",
