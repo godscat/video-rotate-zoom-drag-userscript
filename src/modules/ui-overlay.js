@@ -168,8 +168,12 @@ class UIOverlay {
     const group = document.createElement('div');
     group.className = 'vrz-group vrz-ab';
 
-    this.btnA = this._btn('A', '设置循环起点 A', () => this.abLoop.setA(), 'vrz-ab-mark');
-    this.btnB = this._btn('B', '设置循环终点 B', () => this.abLoop.setB(), 'vrz-ab-mark');
+    this.btnA = this._btn('A', '设置循环起点 A（Shift+点击清空）', (e) => {
+      e.shiftKey ? this.abLoop.clearA() : this.abLoop.setA();
+    }, 'vrz-ab-mark');
+    this.btnB = this._btn('B', '设置循环终点 B（Shift+点击清空）', (e) => {
+      e.shiftKey ? this.abLoop.clearB() : this.abLoop.setB();
+    }, 'vrz-ab-mark');
     this.btnL = this._btn('L', '开始 A-B 循环', () => this.abLoop.toggleLoop(), 'vrz-ab-loop');
 
     group.appendChild(this.btnA);

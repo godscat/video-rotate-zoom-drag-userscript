@@ -118,6 +118,24 @@ class ABLoop {
     this._notify();
   }
 
+  /** Shift+点击清空起点 A；正在循环则先停止 */
+  clearA() {
+    if (this.isLooping) this._detachListener();
+    this.isLooping = false;
+    this.startTime = null;
+    this.logger.info('清空 A');
+    this._notify();
+  }
+
+  /** Shift+点击清空终点 B；正在循环则先停止 */
+  clearB() {
+    if (this.isLooping) this._detachListener();
+    this.isLooping = false;
+    this.endTime = null;
+    this.logger.info('清空 B');
+    this._notify();
+  }
+
   getState() {
     return { startTime: this.startTime, endTime: this.endTime, isLooping: this.isLooping };
   }

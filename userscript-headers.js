@@ -7,7 +7,6 @@
 // @match        *://*/*
 // @grant        GM_addStyle
 // @license      GPL-3.0-or-later
-// @licenseURL   https://www.gnu.org/licenses/gpl-3.0.txt
 // @run-at       document-start
 // ==/UserScript==
 
@@ -25,4 +24,3 @@
 //   CC11001100  https://github.com/CC11001100
 //   https://github.com/JSREI/userscript-template
 // ============================
-

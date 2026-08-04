@@ -65,6 +65,18 @@ const CONFIG = {
     moveDown:    { mod: 'shift', code: 'ArrowDown' },
     moveLeft:    { mod: 'shift', code: 'ArrowLeft' },
     moveRight:   { mod: 'shift', code: 'ArrowRight' },
+
+    // A-B 循环
+    abClearA:     { mod: 'shift', code: 'BracketLeft' },    // Shift+[ → {
+    abClearB:     { mod: 'shift', code: 'BracketRight' },   // Shift+] → }
+    abSetA:       { mod: 'none',  code: 'BracketLeft' },    // [
+    abSetB:       { mod: 'none',  code: 'BracketRight' },   // ]
+    abToggle:     { mod: 'none',  code: 'Backslash' },       // \
+
+    // 面板
+    showHelp:     { mod: 'none',  code: 'KeyH' },            // h
+    showConfig:   { mod: 'none',  code: 'Comma' },           // ,
+    toggleExpand: { mod: 'none',  code: 'Period' },          // .
   },
 
   // 日志开关

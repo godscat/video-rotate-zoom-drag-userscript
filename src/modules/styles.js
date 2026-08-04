@@ -23,6 +23,8 @@ const STYLE = `
     left: 50%;
     transform: translateX(-50%);
     display: flex;
+    flex-direction: column-reverse;
+    gap: 6px;
     align-items: center;
     pointer-events: none;
     transition: opacity 0.2s ease;
@@ -105,7 +107,6 @@ const STYLE = `
     -webkit-backdrop-filter: saturate(180%) blur(17.5px);
     backdrop-filter: saturate(180%) blur(17.5px);
     pointer-events: auto;
-    margin-left: 8px;
   }
   .vrz-secondary.hidden { display: none; }
 

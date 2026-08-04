@@ -17,6 +17,14 @@ const ITEMS = [
   { code: 'ArrowLeft', label: 'Shift + ←', desc: '左移' },
   { code: 'ArrowRight', label: 'Shift + →', desc: '右移' },
   { code: 'Space', label: 'Shift + Space', desc: '全屏切换' },
+  { code: 'BracketLeft', label: '[', desc: '设置 A-B 起点 A' },
+  { code: 'BracketRight', label: ']', desc: '设置 A-B 终点 B' },
+  { code: 'Backslash', label: '\\', desc: 'A-B 循环开关' },
+  { code: 'BracketLeft', label: 'Shift+[', desc: '清空起点 A' },
+  { code: 'BracketRight', label: 'Shift+]', desc: '清空终点 B' },
+  { code: 'KeyH', label: 'H', desc: '快捷键帮助' },
+  { code: 'Comma', label: ',', desc: '修饰键配置' },
+  { code: 'Period', label: '.', desc: '展开/收起面板' },
 ];
 
 class HelpPanel {

@@ -102,6 +102,41 @@ class KeyboardShortcuts {
       e.preventDefault();
       engine.move(CONFIG.move.stepSize, 0);
     }
+    // A-B 循环清空（Shift 版优先）
+    else if (this._match(e, sc.abClearA)) {
+      e.preventDefault();
+      const ab = this.app.abLoop;
+      if (ab) ab.clearA();
+    } else if (this._match(e, sc.abClearB)) {
+      e.preventDefault();
+      const ab = this.app.abLoop;
+      if (ab) ab.clearB();
+    }
+    // A-B 循环设置 / 开关
+    else if (this._match(e, sc.abSetA)) {
+      e.preventDefault();
+      const ab = this.app.abLoop;
+      if (ab) ab.setA();
+    } else if (this._match(e, sc.abSetB)) {
+      e.preventDefault();
+      const ab = this.app.abLoop;
+      if (ab) ab.setB();
+    } else if (this._match(e, sc.abToggle)) {
+      e.preventDefault();
+      const ab = this.app.abLoop;
+      if (ab) ab.toggleLoop();
+    }
+    // 帮助 / 配置 / 展开
+    else if (this._match(e, sc.showHelp)) {
+      e.preventDefault();
+      if (this.app.helpPanel) this.app.helpPanel.toggle();
+    } else if (this._match(e, sc.showConfig)) {
+      e.preventDefault();
+      if (this.app.configPanel) this.app.configPanel.toggle();
+    } else if (this._match(e, sc.toggleExpand)) {
+      e.preventDefault();
+      if (this.app.ui) this.app.ui.toggleExpand();
+    }
   }
 
   _toggleFullscreen() {
