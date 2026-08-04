@@ -1,11 +1,11 @@
 {
-  "name": "multi-platform-video-enhance",
+  "name": "video-rotate-zoom-drag-userscript",
   "version": "2.0.0",
   "description": "多平台视频增强：缩放、旋转、拖拽移动和还原功能",
   "main": "src/video-rotate-zoom-drag.user.js",
-  "repository": "https://github.com/JSREI/userscript-template.git",
-  "namespace": "https://github.com/JSREI/userscript-template.git",
-  "document": "https://github.com/JSREI/userscript-template.git",
+  "repository": "https://github.com/godscat/video-rotate-zoom-drag-userscript",
+  "namespace": "https://github.com/godscat/video-rotate-zoom-drag-userscript",
+  "document": "https://github.com/godscat/video-rotate-zoom-drag-userscript",
   "keywords": [
     "multi-platform",
     "video",
