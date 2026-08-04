@@ -1,19 +1,15 @@
 /**
  * 拖拽模块 - 在 <video> 上拖拽平移
  *
- * 新架构：在 document 上全局监听，通过 app.activeVideo 获取当前视频，
- * 无需在每次切换视频时重新绑定。
- *
- * 平移直接写入 TransformEngine 的 offset；拖拽期间关闭过渡动画以保证跟手。
+ * 在 document 上以 capture 模式监听 pointerdown/pointermove/pointerup，
+ * 比 mousedown 更早拦截（早于平台自身播放/暂停事件）。
+ * 拖拽结束后用 click 守卫阻止平台误触。
  */
 
 import { getLogger } from './logger.js';
 import { checkModifiers } from './site-config.js';
 
 class DragHandler {
-  /**
-   * @param {Object} app - App 实例（提供 get activeVideo / get engine）
-   */
   constructor(app) {
     this.app = app;
     this.logger = getLogger().createChild('DragHandler');
@@ -24,15 +20,24 @@ class DragHandler {
       startY: 0,
     };
 
-    this._onMouseDown = this._onMouseDown.bind(this);
-    this._onMouseMove = this._onMouseMove.bind(this);
-    this._onMouseUp = this._onMouseUp.bind(this);
+    this._dragEndedAt = 0;
 
-    document.addEventListener('mousedown', this._onMouseDown, true);
-    document.addEventListener('mousemove', this._onMouseMove, true);
-    document.addEventListener('mouseup', this._onMouseUp, true);
+    this._onPointerDown = this._onPointerDown.bind(this);
+    this._onPointerMove = this._onPointerMove.bind(this);
+    this._onPointerUp = this._onPointerUp.bind(this);
+    this._onClick = this._onClick.bind(this);
+    this._onPointerCancel = this._onPointerCancel.bind(this);
 
-    this.logger.info('拖拽监听已绑定（document）');
+    // pointer 事件：最早拦截点
+    document.addEventListener('pointerdown',  this._onPointerDown,  true);
+    document.addEventListener('pointermove',  this._onPointerMove,  true);
+    document.addEventListener('pointerup',    this._onPointerUp,    true);
+    document.addEventListener('pointercancel',this._onPointerCancel,true);
+
+    // click 守卫：拖拽刚结束时阻止平台误发暂停
+    document.addEventListener('click', this._onClick, true);
+
+    this.logger.info('拖拽监听已绑定（pointer + click guard）');
   }
 
   _checkModifier(e) {
@@ -41,14 +46,13 @@ class DragHandler {
     return checkModifiers(e, drag.modifiers);
   }
 
-  _onMouseDown(e) {
+  _onPointerDown(e) {
     const video = this.app.activeVideo;
     const stage = this.app.stage;
     if (!video) return;
     if (e.button !== 0) return;
     if (!this._checkModifier(e)) return;
 
-    // 仅在视频显示区域（stage）内触发；排除按钮等交互控件
     const within =
       e.target === video ||
       (stage && (stage === e.target || stage.contains(e.target)));
@@ -64,14 +68,13 @@ class DragHandler {
     this.state.startX = e.clientX - offsetX;
     this.state.startY = e.clientY - offsetY;
 
-    // 关闭过渡动画，跟手
     this.app.engine.smooth = false;
     video.style.cursor = 'grabbing';
 
     this.logger.info(`开始拖拽 (${e.clientX}, ${e.clientY})`);
   }
 
-  _onMouseMove(e) {
+  _onPointerMove(e) {
     if (!this.state.isDragging) return;
     e.preventDefault();
     e.stopPropagation();
@@ -81,22 +84,40 @@ class DragHandler {
     this.app.engine.setOffset(offsetX, offsetY);
   }
 
-  _onMouseUp() {
+  _onPointerUp() {
     if (!this.state.isDragging) return;
     this.state.isDragging = false;
 
     const video = this.app.activeVideo;
     if (video) video.style.cursor = '';
 
-    // 恢复过渡动画
     this.app.engine.smooth = true;
     this.app.engine.apply();
+
+    // 记录拖拽结束时刻，click 守卫将拦截后续误触
+    this._dragEndedAt = Date.now();
+  }
+
+  _onPointerCancel() {
+    if (!this.state.isDragging) return;
+    this._onPointerUp();
+  }
+
+  /** 拖拽刚结束时拦截 click（防止触发平台暂停） */
+  _onClick(e) {
+    if (this._dragEndedAt && (Date.now() - this._dragEndedAt < 400)) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+    }
   }
 
   destroy() {
-    document.removeEventListener('mousedown', this._onMouseDown, true);
-    document.removeEventListener('mousemove', this._onMouseMove, true);
-    document.removeEventListener('mouseup', this._onMouseUp, true);
+    document.removeEventListener('pointerdown',   this._onPointerDown,  true);
+    document.removeEventListener('pointermove',   this._onPointerMove,  true);
+    document.removeEventListener('pointerup',     this._onPointerUp,    true);
+    document.removeEventListener('pointercancel', this._onPointerCancel,true);
+    document.removeEventListener('click',         this._onClick,        true);
   }
 }
 
