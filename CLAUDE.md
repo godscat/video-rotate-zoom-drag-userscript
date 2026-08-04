@@ -155,3 +155,8 @@ DB: vrz-config (version 1)
 - 现代浏览器（ES module、IndexedDB、ResizeObserver、`requestVideoFrameCallback` 可选）
 - Tampermonkey / Greasemonkey
 - 标准 DOM API + CSS transform
+
+## Git 提交与推送规则
+
+- **推送必须得到用户明确许可**：只有在用户明确说"推送"、"上传到 GitHub"等指令时才执行 `git push`。日常开发构建、修改代码后**不要自动推送**。
+- **首次推送前检查 remote**：确认 `origin` 指向用户指定的仓库地址。
