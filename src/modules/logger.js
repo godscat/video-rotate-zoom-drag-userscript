@@ -108,7 +108,7 @@ let globalLogger = null;
  * @param {boolean} enabled - 是否启用（仅在首次调用时使用）
  * @returns {Logger} 全局日志器实例
  */
-export function getLogger(prefix = 'BiliVideo', enabled = true) {
+export function getLogger(prefix = 'VideoController', enabled = true) {
   if (!globalLogger) {
     globalLogger = new Logger(prefix, enabled);
   }

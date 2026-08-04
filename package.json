@@ -30,7 +30,7 @@
     "dev": "echo 'Development mode - ready for testing'",
     "clean:dist-folder": "rimraf ./dist"
   },
-  "author": "浮云里的浮云",
+  "author": "七十二洞天,浮云里的浮云",
   "license": "MIT",
   "devDependencies": {
     "webpack": "^5.88.2",

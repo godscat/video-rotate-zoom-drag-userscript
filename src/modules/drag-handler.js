@@ -1,20 +1,21 @@
 /**
- * 拖拽功能模块 - 管理视频的拖拽移动功能
+ * 拖拽模块 - 在 <video> 上拖拽平移
+ *
+ * 新架构：在 document 上全局监听，通过 app.activeVideo 获取当前视频，
+ * 无需在每次切换视频时重新绑定。
+ *
+ * 平移直接写入 TransformEngine 的 offset；拖拽期间关闭过渡动画以保证跟手。
  */
-import { getLogger } from "./logger.js";
 
-export class DragHandler {
+import { getLogger } from './logger.js';
+import { checkModifiers } from './site-config.js';
+
+class DragHandler {
   /**
-   * 初始化拖拽处理器
-   * @param {VideoTransform} videoTransform - 视频变换实例
-   * @param {Object} config - 配置对象
+   * @param {Object} app - App 实例（提供 get activeVideo / get engine）
    */
-  constructor(videoTransform, config) {
-    this.videoTransform = videoTransform;
-    this.videoContainer = videoTransform.videoContainer;
-    this.config = config;
-
-    // 获取全局日志器实例
+  constructor(app) {
+    this.app = app;
     this.logger = getLogger().createChild('DragHandler');
 
     this.state = {
@@ -23,194 +24,80 @@ export class DragHandler {
       startY: 0,
     };
 
-    // 绑定 this 上下文
-    this._handleMouseDown = this._handleMouseDown.bind(this);
-    this._handleMouseMove = this._handleMouseMove.bind(this);
-    this._handleMouseUp = this._handleMouseUp.bind(this);
+    this._onMouseDown = this._onMouseDown.bind(this);
+    this._onMouseMove = this._onMouseMove.bind(this);
+    this._onMouseUp = this._onMouseUp.bind(this);
 
-    this._bindEvents();
+    document.addEventListener('mousedown', this._onMouseDown, true);
+    document.addEventListener('mousemove', this._onMouseMove, true);
+    document.addEventListener('mouseup', this._onMouseUp, true);
+
+    this.logger.info('拖拽监听已绑定（document）');
   }
 
-  /**
-   * 绑定事件监听器
-   * @private
-   */
-  _bindEvents() {
-    // 根据平台配置决定事件监听策略
-    const eventConfig = this.config.eventHandling || {};
-    const useCapture = eventConfig.captureEvents || false;
-
-    this.logger.info(`绑定拖拽事件，使用捕获模式: ${useCapture}`);
-
-    // 鼠标按下事件
-    this.videoContainer.addEventListener(
-      "mousedown",
-      this._handleMouseDown,
-      useCapture
-    );
-
-    // 鼠标移动事件
-    document.addEventListener("mousemove", this._handleMouseMove, useCapture);
-
-    // 鼠标释放事件
-    document.addEventListener("mouseup", this._handleMouseUp, useCapture);
+  _checkModifier(e) {
+    const drag = this.app.siteConfig && this.app.siteConfig.getDragConfig();
+    if (!drag || !drag.enabled) return false;
+    return checkModifiers(e, drag.modifiers);
   }
 
-  /**
-   * 处理鼠标按下事件
-   * @private
-   * @param {MouseEvent} e - 鼠标事件
-   */
-  _handleMouseDown(e) {
-    // 检查拖拽功能是否启用
-    if (!this.config.drag || !this.config.drag.enabled) return;
+  _onMouseDown(e) {
+    const video = this.app.activeVideo;
+    const stage = this.app.stage;
+    if (!video) return;
+    if (e.button !== 0) return;
+    if (!this._checkModifier(e)) return;
 
-    // 只有在缩放状态下才能拖拽，且只有左键才能拖拽
-    if (!this.videoTransform.canDrag() || e.button !== 0) return;
+    // 仅在视频显示区域（stage）内触发；排除按钮等交互控件
+    const within =
+      e.target === video ||
+      (stage && (stage === e.target || stage.contains(e.target)));
+    if (!within) return;
+    if (e.target.closest && e.target.closest('button,[role="button"],a,input,select,textarea')) return;
 
-    // 检查修饰键
-    const dragModifier = this.config.drag.modifier;
-    let modifierPressed = false;
-
-    if (dragModifier) {
-      switch (dragModifier.toLowerCase()) {
-        case 'ctrl':
-          modifierPressed = e.ctrlKey || e.metaKey; // 支持 Mac 的 Cmd 键
-          break;
-        case 'shift':
-          modifierPressed = e.shiftKey;
-          break;
-        case 'alt':
-          modifierPressed = e.altKey;
-          break;
-        default:
-          modifierPressed = true; // 未知修饰键，默认允许
-      }
-    } else {
-      modifierPressed = true; // 无修饰键配置，总是允许
-    }
-
-    if (!modifierPressed) {
-      return; // 没有按住修饰键，不处理
-    }
-
-    // 强制阻止所有默认行为，防止触发播放器的播放/暂停功能
     e.preventDefault();
     e.stopPropagation();
     e.stopImmediatePropagation();
 
-    const { offsetX, offsetY } = this.videoTransform.getOffset();
-
+    const { offsetX, offsetY } = this.app.engine.getOffset();
     this.state.isDragging = true;
     this.state.startX = e.clientX - offsetX;
     this.state.startY = e.clientY - offsetY;
 
-    this.videoContainer.style.cursor = "grabbing";
+    // 关闭过渡动画，跟手
+    this.app.engine.smooth = false;
+    video.style.cursor = 'grabbing';
 
-    this.logger.info(`开始拖拽，修饰键: ${dragModifier || '无'}，初始位置: (${this.state.startX}, ${this.state.startY})`);
+    this.logger.info(`开始拖拽 (${e.clientX}, ${e.clientY})`);
   }
 
-  /**
-   * 处理鼠标移动事件
-   * @private
-   * @param {MouseEvent} e - 鼠标事件
-   */
-  _handleMouseMove(e) {
+  _onMouseMove(e) {
     if (!this.state.isDragging) return;
-
-    // 强制阻止默认行为，防止拖拽时影响播放器
     e.preventDefault();
     e.stopPropagation();
-    e.stopImmediatePropagation();
 
     const offsetX = e.clientX - this.state.startX;
     const offsetY = e.clientY - this.state.startY;
-
-    this.videoTransform.setOffset(offsetX, offsetY);
+    this.app.engine.setOffset(offsetX, offsetY);
   }
 
-  /**
-   * 处理鼠标释放事件
-   * @private
-   */
-  _handleMouseUp() {
+  _onMouseUp() {
     if (!this.state.isDragging) return;
-
     this.state.isDragging = false;
 
-    // 恢复正确的鼠标指针样式
-    if (this.videoTransform.canDrag()) {
-      this.videoContainer.style.cursor = "grab";
-    } else {
-      this.videoContainer.style.cursor = "default";
-    }
+    const video = this.app.activeVideo;
+    if (video) video.style.cursor = '';
+
+    // 恢复过渡动画
+    this.app.engine.smooth = true;
+    this.app.engine.apply();
   }
 
-  /**
-   * 程序化开始拖拽
-   * @param {number} startX - 起始X坐标
-   * @param {number} startY - 起始Y坐标
-   */
-  startDrag(startX, startY) {
-    if (!this.videoTransform.canDrag()) return;
-
-    const { offsetX, offsetY } = this.videoTransform.getOffset();
-
-    this.state.isDragging = true;
-    this.state.startX = startX - offsetX;
-    this.state.startY = startY - offsetY;
-
-    this.videoContainer.style.cursor = "grabbing";
-  }
-
-  /**
-   * 程序化设置拖拽位置
-   * @param {number} clientX - 当前X坐标
-   * @param {number} clientY - 当前Y坐标
-   */
-  setDragPosition(clientX, clientY) {
-    if (!this.state.isDragging) return;
-
-    const offsetX = clientX - this.state.startX;
-    const offsetY = clientY - this.state.startY;
-
-    this.videoTransform.setOffset(offsetX, offsetY);
-  }
-
-  /**
-   * 程序化结束拖拽
-   */
-  endDrag() {
-    this._handleMouseUp();
-  }
-
-  /**
-   * 检查当前是否正在拖拽
-   * @returns {boolean} 是否正在拖拽
-   */
-  isDragging() {
-    return this.state.isDragging;
-  }
-
-  /**
-   * 销毁事件监听器
-   */
   destroy() {
-    const eventConfig = this.config.eventHandling || {};
-    const useCapture = eventConfig.captureEvents || false;
-
-    if (this.videoContainer) {
-      this.videoContainer.removeEventListener(
-        "mousedown",
-        this._handleMouseDown,
-        useCapture
-      );
-    }
-    document.removeEventListener(
-      "mousemove",
-      this._handleMouseMove,
-      useCapture
-    );
-    document.removeEventListener("mouseup", this._handleMouseUp, useCapture);
+    document.removeEventListener('mousedown', this._onMouseDown, true);
+    document.removeEventListener('mousemove', this._onMouseMove, true);
+    document.removeEventListener('mouseup', this._onMouseUp, true);
   }
 }
+
+export { DragHandler };
