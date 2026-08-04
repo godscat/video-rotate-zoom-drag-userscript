@@ -142,7 +142,6 @@ DB: vrz-config (version 1)
 - **模块**：`src/modules/*.js`
 - **构建产物**：`dist/video-rotate-zoom-drag.user.js`
 - **用户脚本头模板**：`userscript-headers.js`（含致谢）
-- **参考来源**：`example-source/chimo-chimo-loop.js`、`origin-source/video.util.js`
 
 ## 测试
 
