@@ -181,7 +181,7 @@ class App {
     this.abLoop.reset();
 
     this.engine.attach(video);
-    this.ui.attach(this.stage);
+    this.ui.attach(this.stage, video);
 
     // 激活后短时轮询，等待布局稳定
     this.startPolling(500);

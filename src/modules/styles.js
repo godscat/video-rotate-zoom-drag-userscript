@@ -95,6 +95,48 @@ const STYLE = `
     background: rgba(255, 255, 255, 0.25);
   }
 
+  /* 倍速选择器 */
+  .vrz-speed-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+  .vrz-speed-btn {
+    min-width: 34px;
+    padding: 0 6px;
+    font-size: 12px;
+  }
+  .vrz-speed-menu {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 6px;
+    min-width: 60px;
+    padding: 4px 0;
+    border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0.65);
+    -webkit-backdrop-filter: saturate(180%) blur(17.5px);
+    backdrop-filter: saturate(180%) blur(17.5px);
+    z-index: 1;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  }
+  .vrz-speed-menu.hidden { display: none; }
+  .vrz-speed-item {
+    padding: 4px 16px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.12s;
+  }
+  .vrz-speed-item:hover { background: rgba(255, 255, 255, 0.18); }
+  .vrz-speed-item.active {
+    background: rgba(255, 255, 255, 0.12);
+    color: #0cf;
+  }
+
   /* 次级面板 */
   .vrz-secondary {
     display: inline-flex;

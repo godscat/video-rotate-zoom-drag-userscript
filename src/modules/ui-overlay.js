@@ -23,6 +23,8 @@ class UIOverlay {
     this.abLoop = abLoop;
     this.callbacks = callbacks;
     this.stage = null;
+    this._video = null;
+    this._rateChangeHandler = null;
     this._expanded = false;
 
     this.container = document.createElement('div');
@@ -110,6 +112,9 @@ class UIOverlay {
     this.bar.appendChild(this.display);
 
     this.bar.appendChild(this._btn('+', '放大 (Shift + +)', () => this.engine.zoomIn()));
+
+    // 倍速选择器
+    this.bar.appendChild(this._buildSpeed());
 
     this.bar.appendChild(this._divider());
 
@@ -208,15 +213,31 @@ class UIOverlay {
     this.display.textContent = formatText('{value}%', state.zoomLevel);
   }
 
-  attach(stage) {
+  attach(stage, video) {
     this.stage = stage;
+    this._detachRate();
+    this._video = video || null;
+    if (video) {
+      this._rateChangeHandler = () => this._updateSpeedLabel();
+      video.addEventListener('ratechange', this._rateChangeHandler);
+      this._updateSpeedLabel();
+    }
     this.reposition();
     this.show();
   }
 
   detach() {
+    this._detachRate();
+    this._video = null;
     this.stage = null;
     this.hide();
+  }
+
+  _detachRate() {
+    if (this._video && this._rateChangeHandler) {
+      this._video.removeEventListener('ratechange', this._rateChangeHandler);
+      this._rateChangeHandler = null;
+    }
   }
 
   reposition(rect) {
@@ -239,6 +260,75 @@ class UIOverlay {
 
   isVisible() {
     return !this.controls.classList.contains('hidden');
+  }
+
+  _buildSpeed() {
+    const SPEEDS = [2.0, 1.5, 1.25, 1.0, 0.75, 0.5];
+    this.speedWrap = document.createElement('div');
+    this.speedWrap.className = 'vrz-speed-wrap';
+
+    this.speedBtn = document.createElement('button');
+    this.speedBtn.className = 'vrz-btn vrz-speed-btn';
+    this.speedBtn.innerHTML = '1×';
+    this.speedBtn.title = '倍速播放';
+    this.speedBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._toggleSpeedMenu();
+    });
+    this.speedWrap.appendChild(this.speedBtn);
+
+    this.speedMenu = document.createElement('div');
+    this.speedMenu.className = 'vrz-speed-menu hidden';
+    SPEEDS.forEach((s) => {
+      const item = document.createElement('div');
+      item.className = 'vrz-speed-item';
+      item.textContent = this._speedLabel(s);
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (this._video) this._video.playbackRate = s;
+        this._closeSpeedMenu();
+      });
+      this.speedMenu.appendChild(item);
+    });
+    this.speedWrap.appendChild(this.speedMenu);
+
+    this._docClick = (e) => {
+      if (!this.speedWrap.contains(e.target)) this._closeSpeedMenu();
+    };
+    document.addEventListener('mousedown', this._docClick);
+
+    return this.speedWrap;
+  }
+
+  _speedLabel(rate) {
+    if (rate === 1) return '1×';
+    return `${rate}×`;
+  }
+
+  _updateSpeedLabel() {
+    if (!this.speedBtn || !this._video) return;
+    const rate = this._video.playbackRate;
+    this.speedBtn.innerHTML = this._speedLabel(rate);
+    this.speedBtn.title = `倍速播放（${rate}×）`;
+    if (this.speedMenu) {
+      this.speedMenu.querySelectorAll('.vrz-speed-item').forEach((item) => {
+        item.classList.toggle('active', parseFloat(item.textContent) === rate);
+      });
+    }
+  }
+
+  _toggleSpeedMenu() {
+    if (!this.speedMenu) return;
+    if (this.speedMenu.classList.contains('hidden')) {
+      this._updateSpeedLabel();
+      this.speedMenu.classList.remove('hidden');
+    } else {
+      this._closeSpeedMenu();
+    }
+  }
+
+  _closeSpeedMenu() {
+    if (this.speedMenu) this.speedMenu.classList.add('hidden');
   }
 }
 
