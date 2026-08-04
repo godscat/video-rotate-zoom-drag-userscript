@@ -21,7 +21,9 @@
 1. 安装 [Tampermonkey](https://www.tampermonkey.net/)
 2. 打开 `dist/video-rotate-zoom-drag.user.js`（或 `src/video-rotate-zoom-drag.user.js` 开发版）复制全部内容
 3. Tampermonkey 新建脚本并粘贴，保存
-4. 打开任意视频页面即可
+4. 或，如果你使用 VS Code 开发，可以安装 scriptcat 插件
+5. 或，你用的是别的工具，也可以安装 [scriptcat-sync](https://github.com/zerobiubiu/scriptcat-sync) 帮助你开发
+6. 打开任意视频页面即可
 
 > 自行构建：`node build-simple.js` → 产出 `dist/video-rotate-zoom-drag.user.js`
 

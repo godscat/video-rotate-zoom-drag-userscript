@@ -15,10 +15,12 @@ import CONFIG, { formatText } from './config.js';
 class UIOverlay {
   /**
    * @param {TransformEngine} transformEngine
+   * @param {ABLoop} abLoop
    * @param {Object} callbacks - { onConfig, onHelp }
    */
-  constructor(transformEngine, callbacks = {}) {
+  constructor(transformEngine, abLoop, callbacks = {}) {
     this.engine = transformEngine;
+    this.abLoop = abLoop;
     this.callbacks = callbacks;
     this.stage = null;
     this._expanded = false;
@@ -139,6 +141,11 @@ class UIOverlay {
 
     this.secondary.appendChild(this._divider());
 
+    // A-B 循环组
+    this.secondary.appendChild(this._buildAB());
+
+    this.secondary.appendChild(this._divider());
+
     // 工具组
     const tools = document.createElement('div');
     tools.className = 'vrz-group';
@@ -147,6 +154,43 @@ class UIOverlay {
     this.collapseBtn = this._btn('«', '收起面板', () => this.toggleExpand());
     tools.appendChild(this.collapseBtn);
     this.secondary.appendChild(tools);
+  }
+
+  _fmtTime(t) {
+    if (t == null) return '';
+    if (!isFinite(t) || t < 0) t = 0;
+    const m = Math.floor(t / 60);
+    const s = Math.floor(t % 60);
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  }
+
+  _buildAB() {
+    const group = document.createElement('div');
+    group.className = 'vrz-group vrz-ab';
+
+    this.btnA = this._btn('A', '设置循环起点 A', () => this.abLoop.setA(), 'vrz-ab-mark');
+    this.btnB = this._btn('B', '设置循环终点 B', () => this.abLoop.setB(), 'vrz-ab-mark');
+    this.btnL = this._btn('L', '开始 A-B 循环', () => this.abLoop.toggleLoop(), 'vrz-ab-loop');
+
+    group.appendChild(this.btnA);
+    group.appendChild(this.btnB);
+    group.appendChild(this.btnL);
+
+    this.abLoop.onChange = (st) => this._updateAB(st);
+    this._updateAB(this.abLoop.getState());
+    return group;
+  }
+
+  _updateAB(st) {
+    const a = st.startTime;
+    const b = st.endTime;
+    this.btnA.innerHTML = a != null ? `A [${this._fmtTime(a)}]` : 'A';
+    this.btnB.innerHTML = b != null ? `B [${this._fmtTime(b)}]` : 'B';
+    this.btnL.innerHTML = st.isLooping ? 'S' : 'L';
+    this.btnL.title = st.isLooping ? '停止循环' : '开始 A-B 循环';
+    this.btnL.classList.toggle('vrz-on', st.isLooping);
+    // 未设置 A、B 时禁用 L；正在循环时保持可用（用于停止）
+    this.btnL.disabled = !st.isLooping && !(a != null && b != null && b > a);
   }
 
   toggleExpand() {

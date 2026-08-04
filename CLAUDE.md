@@ -23,7 +23,7 @@
 pnpm run build    # 生产构建
 pnpm run watch    # 监听模式
 pnpm run dev      # 开发提示
-node build-simple.js   # 直接构建（等价 build）
+node build-simple.js   # 直接构建干净版本（等价 build）
 ```
 
 ### 包管理器

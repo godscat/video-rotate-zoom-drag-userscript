@@ -17,6 +17,7 @@ import { UIOverlay } from './ui-overlay.js';
 import { DragHandler } from './drag-handler.js';
 import { WheelHandler } from './wheel-handler.js';
 import { KeyboardShortcuts } from './keyboard-shortcuts.js';
+import { ABLoop } from './ab-loop.js';
 import { SiteConfig } from './site-config.js';
 import { ConfigPanel } from './config-panel.js';
 import { HelpPanel } from './help-panel.js';
@@ -46,9 +47,10 @@ class App {
 
     // 创建核心模块
     this.engine = new TransformEngine();
+    this.abLoop = new ABLoop(this);
     this.configPanel = new ConfigPanel(this.siteConfig);
     this.helpPanel = new HelpPanel();
-    this.ui = new UIOverlay(this.engine, {
+    this.ui = new UIOverlay(this.engine, this.abLoop, {
       onConfig: () => this.configPanel.open(),
       onHelp: () => this.helpPanel.open(),
     });
@@ -175,6 +177,9 @@ class App {
     this.activeVideo = video;
     this.stage = video.parentElement || video;
 
+    // 切换到新视频：清空 A-B 循环状态
+    this.abLoop.reset();
+
     this.engine.attach(video);
     this.ui.attach(this.stage);
 
@@ -202,6 +207,7 @@ class App {
   detach() {
     this.engine.detach();
     this.ui.detach();
+    this.abLoop.reset();
     this.activeVideo = null;
     this.stage = null;
     this.videoRect = null;
@@ -318,6 +324,7 @@ class App {
    */
   stop() {
     this.detach();
+    this.abLoop.destroy();
     this.dragHandler.destroy();
     this.wheelHandler.destroy();
     this.keyboard.destroy();

@@ -67,6 +67,9 @@ const STYLE = `
   }
   .vrz-btn:hover { background: rgba(255, 255, 255, 0.22); }
   .vrz-btn:active { transform: scale(0.88); }
+  .vrz-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .vrz-btn.vrz-on { background: #2d6; }
+  .vrz-btn.vrz-on:hover { background: #3e7; }
 
   .vrz-display {
     min-width: 44px;
