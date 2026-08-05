@@ -39,17 +39,42 @@ class App {
     this.spaObserver = null; // MutationObserver 监听 DOM 变化
     this._spaTimer = null;
 
-    // 注入样式
-    Styles.inject();
+    // 阶段二懒初始化标志：首次 activate 视频时才创建 UI / 交互处理器
+    this._handlersReady = false;
+    this.ui = null;
+    this.dragHandler = null;
+    this.wheelHandler = null;
+    this.keyboard = null;
+    this.configPanel = null;
+    this.helpPanel = null;
 
-    // 每站点配置（修饰键）
+    // 阶段一即可安全创建（构造期无全局事件副作用）
     this.siteConfig = new SiteConfig();
-
-    // 创建核心模块
     this.engine = new TransformEngine();
     this.abLoop = new ABLoop(this);
+  }
+
+  /**
+   * 阶段二：首次激活视频时创建 UI 与交互处理器（幂等）。
+   * 在此之前页面仅持有 play + MutationObserver 两个轻量监听，
+   * 避免在无视频站点上全局绑定快捷键 / 指针 / 滚轮监听。
+   */
+  _ensureHandlers() {
+    if (this._handlersReady) return;
+    this._handlersReady = true;
+
+    // 异步加载本站点配置（失败回退默认值）；仅在进入阶段二时打开 IndexedDB，
+    // 避免无视频站点创建 vrz-config 数据库
+    this.siteConfig.load();
+
+    // 注入样式（无视频时不注入 <style>）
+    Styles.inject();
+
+    // 面板（DOM 在 open() 时按需创建，构造期无副作用）
     this.configPanel = new ConfigPanel(this.siteConfig);
     this.helpPanel = new HelpPanel();
+
+    // 悬浮 UI（此刻才会向 body 插入浮层并绑定 document mousedown）
     this.ui = new UIOverlay(this.engine, this.abLoop, {
       onConfig: () => this.configPanel.open(),
       onHelp: () => this.helpPanel.open(),
@@ -59,26 +84,8 @@ class App {
     this.dragHandler = new DragHandler(this);
     this.wheelHandler = new WheelHandler(this);
     this.keyboard = new KeyboardShortcuts(this);
-  }
 
-  /**
-   * 启动：全局事件监听 + 首次扫描
-   */
-  start() {
-    // play 事件：视频开始播放时激活（过滤信息流封面预览等小视频）
-    document.addEventListener(
-      'play',
-      (e) => {
-        if (e.target instanceof HTMLVideoElement && this._isPrimaryVideo(e.target)) {
-          this.activate(e.target);
-        }
-        this.isPaused = false;
-        this.showAndTimer();
-      },
-      true
-    );
-
-    // 暂停时常驻显示
+    // 阶段二的全局监听（显隐控制 / 位置同步 / 暂停常驻）
     document.addEventListener(
       'pause',
       (e) => {
@@ -89,13 +96,31 @@ class App {
       },
       true
     );
-
-    // 滚动/缩放：重新定位
     document.addEventListener('scroll', () => this.updateRectAndPosition(), { passive: true, capture: true });
     window.addEventListener('resize', () => this.updateRectAndPosition(), { passive: true });
-
-    // 鼠标移动：控制显隐
     window.addEventListener('pointermove', (e) => this.handleGlobalPointer(e), { passive: true });
+
+    this.logger.info('交互处理器已就绪');
+  }
+
+  /**
+   * 启动：阶段一（轻量探测）。仅绑定视频发现所需的监听，
+   * 交互处理器推迟到首次 activate() 时由 _ensureHandlers() 创建。
+   */
+  start() {
+    // play 事件：视频发现核心。handler 未就绪时仅走激活路径，不触碰 UI。
+    document.addEventListener(
+      'play',
+      (e) => {
+        if (e.target instanceof HTMLVideoElement && this._isPrimaryVideo(e.target)) {
+          this.activate(e.target);
+        }
+        if (!this._handlersReady) return;
+        this.isPaused = false;
+        this.showAndTimer();
+      },
+      true
+    );
 
     // SPA：DOM 变化后重新扫描（防抖）
     this.spaObserver = new MutationObserver(() => {
@@ -104,12 +129,9 @@ class App {
     });
     this.spaObserver.observe(document.body, { childList: true, subtree: true });
 
-    // 异步加载本站点配置（失败回退默认值）
-    this.siteConfig.load();
-
     // 首次扫描
     this.scan();
-    this.logger.info('App 已启动');
+    this.logger.info('App 已启动（探测模式，待视频出现即激活）');
   }
 
   /**
@@ -174,6 +196,9 @@ class App {
     if (!this._isPrimaryVideo(video)) return;
     if (!this.shouldSwitchVideo(video)) return;
 
+    // 首次激活：完成阶段二初始化（UI + 交互处理器 + 显隐监听）
+    this._ensureHandlers();
+
     this.activeVideo = video;
     this.stage = video.parentElement || video;
 
@@ -206,7 +231,7 @@ class App {
    */
   detach() {
     this.engine.detach();
-    this.ui.detach();
+    if (this.ui) this.ui.detach();
     this.abLoop.reset();
     this.activeVideo = null;
     this.stage = null;
@@ -231,11 +256,12 @@ class App {
       this.detach();
       return;
     }
-    const rect = this.stage.getBoundingClientRect();
-    // 过滤无效 rect（display:none 等）
-    if (rect.width === 0 && rect.height === 0) return;
-    this.videoRect = rect;
-    this.ui.reposition(rect);
+    const stageRect = this.stage.getBoundingClientRect();
+    const videoRect = this.activeVideo.getBoundingClientRect();
+    // stage 塌陷时（如 YouTube 的 .html5-video-container 高度为 0）回退到 video rect
+    const rect = stageRect.width > 0 && stageRect.height > 0 ? stageRect : videoRect;
+    this.videoRect = rect; // 显隐判断沿用 stage 语义
+    this.ui.reposition(rect, videoRect);
   }
 
   /**
@@ -325,11 +351,11 @@ class App {
   stop() {
     this.detach();
     this.abLoop.destroy();
-    this.dragHandler.destroy();
-    this.wheelHandler.destroy();
-    this.keyboard.destroy();
-    this.configPanel.close();
-    this.helpPanel.close();
+    this.dragHandler?.destroy();
+    this.wheelHandler?.destroy();
+    this.keyboard?.destroy();
+    if (this.configPanel) this.configPanel.close();
+    if (this.helpPanel) this.helpPanel.close();
     if (this.spaObserver) this.spaObserver.disconnect();
     clearTimeout(this._spaTimer);
   }

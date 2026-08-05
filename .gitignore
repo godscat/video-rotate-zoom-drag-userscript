@@ -134,3 +134,6 @@ dist
 # claude code
 .claude/
 .zed/
+
+# AI 待办看板（本地，不提交）
+TODOS.md

@@ -57,6 +57,7 @@ class KeyboardShortcuts {
 
   _onKeyDown(e) {
     if (this._inInput(e)) return;
+    if (!this.app.activeVideo) return;
 
     const sc = CONFIG.shortcuts;
     const engine = this.app.engine;

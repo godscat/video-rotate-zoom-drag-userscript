@@ -15,13 +15,14 @@ class SimpleBuilder {
   // 读取用户脚本头部模板
   getHeaders() {
     let headers = fs.readFileSync("./userscript-headers.js", "utf8");
+    let dateTimeString = new Date().toISOString();
 
     // 替换模板变量
     Object.entries({
       "${name}": this.packageJson.name,
       "${namespace}": this.packageJson.namespace,
       "${version}": this.packageJson.version,
-      "${description}": this.packageJson.description,
+      "${description}": this.packageJson.description  + " 构建于：[" + dateTimeString + "]",
       "${document}": this.packageJson.document,
       "${author}": this.packageJson.author,
       "${repository}": this.packageJson.repository,

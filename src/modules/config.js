@@ -35,6 +35,12 @@ const CONFIG = {
     minActivateHeight: 225,
   },
 
+  // 站点黑名单：hostname 精确匹配，命中则脚本完全不启动（不绑定任何监听）
+  blacklist: [
+    's1.hdslb.com',          // B 站静态资源域
+    'message.bilibili.com',  // B 站消息中心
+  ],
+
   // 拖拽配置（修饰键组合，默认 shift；按站点可配置并持久化）
   drag: {
     enabled: true,
@@ -79,7 +85,7 @@ const CONFIG = {
     toggleExpand: { mod: 'none',  code: 'Period' },          // .
   },
 
-  // 日志开关
+  // 日志开关（默认禁用；调试时改为 true）
   log: {
     enabled: true,
   },

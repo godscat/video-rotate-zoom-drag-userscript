@@ -19,6 +19,7 @@
 
 import { App } from "./modules/app.js";
 import { getLogger } from "./modules/logger.js";
+import CONFIG from "./modules/config.js";
 
 (function () {
   "use strict";
@@ -27,12 +28,20 @@ import { getLogger } from "./modules/logger.js";
 
   function main() {
     try {
-      const logger = getLogger().createChild("Main");
+      // 首次初始化全局日志器（独立开关，由 config.log.enabled 控制）
+      const logger = getLogger({ enabled: CONFIG.log.enabled }).createChild("Main");
+
+      // 黑名单：入口级拦截，命中则完全不构造 App（零监听、零副作用）
+      if (CONFIG.blacklist && CONFIG.blacklist.includes(location.hostname)) {
+        logger.info(`站点 ${location.hostname} 命中黑名单，脚本不启动`);
+        return;
+      }
+
       app = new App();
       app.start();
-      logger.info("视频控制器启动成功（浮层架构）");
+      // logger.info("视频控制器启动成功（浮层架构）");
     } catch (error) {
-      console.error("[VideoController] 启动失败:", error);
+      console.error("[vrz] 启动失败:", error);
     }
   }
 

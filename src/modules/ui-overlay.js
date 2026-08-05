@@ -12,6 +12,9 @@
 
 import CONFIG, { formatText } from './config.js';
 
+// 工具条距 video 底边的基础偏移（B 方案：相对 video 底边定位的兜底值）
+const UI_BOTTOM_BASE = 14;
+
 class UIOverlay {
   /**
    * @param {TransformEngine} transformEngine
@@ -53,7 +56,7 @@ class UIOverlay {
   _btn(label, title, onClick, extraClass = '') {
     const b = document.createElement('button');
     b.className = `vrz-btn ${extraClass}`.trim();
-    b.innerHTML = label;
+    b.textContent = label;
     b.title = title;
     b.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -74,7 +77,7 @@ class UIOverlay {
   _repeatable(label, title, action) {
     const b = document.createElement('button');
     b.className = 'vrz-btn';
-    b.innerHTML = label;
+    b.textContent = label;
     b.title = title;
 
     let startTimer = null;
@@ -193,9 +196,9 @@ class UIOverlay {
   _updateAB(st) {
     const a = st.startTime;
     const b = st.endTime;
-    this.btnA.innerHTML = a != null ? `A [${this._fmtTime(a)}]` : 'A';
-    this.btnB.innerHTML = b != null ? `B [${this._fmtTime(b)}]` : 'B';
-    this.btnL.innerHTML = st.isLooping ? 'S' : 'L';
+    this.btnA.textContent = a != null ? `A [${this._fmtTime(a)}]` : 'A';
+    this.btnB.textContent = b != null ? `B [${this._fmtTime(b)}]` : 'B';
+    this.btnL.textContent = st.isLooping ? 'S' : 'L';
     this.btnL.title = st.isLooping ? '停止循环' : '开始 A-B 循环';
     this.btnL.classList.toggle('vrz-on', st.isLooping);
     // 未设置 A、B 时禁用 L；正在循环时保持可用（用于停止）
@@ -240,14 +243,22 @@ class UIOverlay {
     }
   }
 
-  reposition(rect) {
-    if (!this.stage && !rect) return;
-    const r = rect || this.stage.getBoundingClientRect();
+  reposition(stageRect, videoRect) {
+    if (!this.stage && !stageRect) return;
+    const r = stageRect || this.stage.getBoundingClientRect();
     if (!r.width && !r.height) return;
     this.container.style.top = r.top + 'px';
     this.container.style.left = r.left + 'px';
     this.container.style.width = r.width + 'px';
     this.container.style.height = r.height + 'px';
+
+    // B 方案：工具条底部对齐 video 底边，避开 stage 内的原生控制栏。
+    // gap = stage 底到 video 底；gap>0（控制栏在 video 下方）时工具条上移贴 video 底边。
+    if (videoRect && videoRect.height > 0) {
+      const gap = r.bottom - videoRect.bottom;
+      const bottom = Math.max(UI_BOTTOM_BASE, gap + UI_BOTTOM_BASE);
+      this.controls.style.bottom = bottom + 'px';
+    }
   }
 
   show() {
@@ -269,7 +280,7 @@ class UIOverlay {
 
     this.speedBtn = document.createElement('button');
     this.speedBtn.className = 'vrz-btn vrz-speed-btn';
-    this.speedBtn.innerHTML = '1×';
+    this.speedBtn.textContent = '1×';
     this.speedBtn.title = '倍速播放';
     this.speedBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -308,7 +319,7 @@ class UIOverlay {
   _updateSpeedLabel() {
     if (!this.speedBtn || !this._video) return;
     const rate = this._video.playbackRate;
-    this.speedBtn.innerHTML = this._speedLabel(rate);
+    this.speedBtn.textContent = this._speedLabel(rate);
     this.speedBtn.title = `倍速播放（${rate}×）`;
     if (this.speedMenu) {
       this.speedMenu.querySelectorAll('.vrz-speed-item').forEach((item) => {

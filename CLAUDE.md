@@ -9,10 +9,14 @@
 **核心架构特点（参考 chimo-chimo-loop，重写于 v2）**：
 
 - **零平台选择器**：不依赖任何站点 CSS 选择器，直接 `document.querySelector('video')` + `play` 事件发现视频，`@match *://*/*` 通配所有站点。
+- **两阶段懒启动**：脚本加载后仅绑定 `play` + MutationObserver（阶段一，轻量探测）；首次发现达标视频才由 `_ensureHandlers()` 创建 UI / 交互处理器并绑定显隐监听（阶段二）。无视频站点零监听开销。
+- **站点黑名单**：`config.js` 的 `blacklist`（hostname 精确匹配），主入口命中即**完全不构造 App**（零副作用）。
 - **悬浮浮层 UI**：控制条为 `position:fixed` 容器挂到 `body`，通过 `getBoundingClientRect()` 实时跟随视频父元素（stage）位置——而非塞进平台自己的控制栏。
+- **工具条避让原生控制栏**：`reposition(stageRect, videoRect)` 相对 **video 底边**定位（而非 stage 底边），自动避开 stage 内的原生控制栏；stage 塌陷（如 YouTube `.html5-video-container`）时回退到 video rect。
 - **变换作用于 `<video>` 本身**：通过动态 `<style>` 标签 + `video[data-vrz-active]` 属性选择器注入 `transform`，不污染 inline style。
+- **Trusted Types 兼容**：`setHTML()` 工具 + 单例 `vrz-html` 策略，兼容 YouTube 等启用 TT 的站点；无 TT 环境降级为直接赋值。
 - **90° 旋转无黑边**：`calculateScale()` 按 `object-fit:contain` 反推缩放比例。
-- **每站点配置**：拖拽/滚轮的修饰键组合按 `location.hostname` 存入 IndexedDB。
+- **每站点配置**：拖拽/滚轮的修饰键组合按 `location.hostname` 存入 IndexedDB；`siteConfig.load()` 推迟到阶段二，无视频站点不打开 DB。
 - **尺寸门槛**：渲染尺寸 < 400×225 的视频（如信息流 hover 预览）不激活，避免误触。
 
 ## 构建系统
@@ -33,56 +37,78 @@ node build-simple.js   # 直接构建干净版本（等价 build）
 ### 构建产物
 
 - **入口**：`src/video-rotate-zoom-drag.user.js`（IIFE，`import { App }`）
-- **构建工具**：自定义 `build-simple.js`——自动发现 `src/modules/*.js`，**按文件名字典序拼接**，剥离 `import/export`，再拼上主入口。
+- **构建工具**：自定义 `build-simple.js`——自动发现 `src/modules/*.js`，**按文件名字典序拼接**，剥离 `import/export`，再拼上主入口；并在 `@description` 末尾注入构建时间戳。
 - **开发态**：可直接在 Tampermonkey 加载 `src/video-rotate-zoom-drag.user.js`（需 ES module 支持）。
 - **生产态**：输出可读、未压缩的 `dist/video-rotate-zoom-drag.user.js`。
 
 > ⚠️ 拼接顺序由文件名字典序决定。跨模块引用必须满足：(1) 函数声明会被提升，可跨文件用；(2) `const/class` 存在 TDZ，**禁止在模块顶层引用其它模块的 const/class**，只能在构造函数/方法内（运行期）引用——因为 `new App()` 在主入口（最后）才执行。
 
+### 关于构建的常见误解
+
+- **这不是传统 webpack / Node 项目**：仓库里虽有 webpack 配置与 `package.json`，但默认构建走自定义的 `build-simple.js`。它存在的目的正是为了**规避 webpack 产物里 `__webpack_require__` / `__webpack_modules__` 等运行时模板代码**，产出干净、可读、未压缩的单文件用户脚本。**不要**把 `dist/` 当作 webpack bundle 来分析，也**不要**用 webpack 思路理解模块加载——这里没有 chunk、没有运行时清单，只有「按文件名字典序拼接 + 剥离 `import/export`」的纯文本拼接。
+- **AI 助手的测试约定**：代码改动后，AI 只需运行 `node --check dist/video-rotate-zoom-drag.user.js` 验证**语法**通过即可；**功能正确性（浏览器行为、站点兼容、控制台日志格式、IndexedDB 行为等）一律由用户在浏览器实测确认**。AI 不应也不必尝试用 Node 运行脚本片段来推断浏览器里的运行结果——脚本依赖 `document` / `window` / `location` 等浏览器宿主，Node 环境无法还原。
+
 ## 架构
+
+### 启动流程（两阶段）
+
+```
+主入口 main()
+  ├─ getLogger({ enabled: CONFIG.log.enabled })  ← 首次初始化全局日志器（单例）
+  ├─ 黑名单检查（命中即 return，不构造 App）
+  ├─ new App()
+  │    └─ 构造期：仅创建 SiteConfig / TransformEngine / ABLoop（均无全局副作用）
+  └─ app.start()                                  ← 阶段一：play + MutationObserver + scan()
+       └─ 首次 activate(video)
+            └─ _ensureHandlers()                  ← 阶段二：Styles/UI/Drag/Wheel/Keyboard + pause/scroll/resize/pointermove + siteConfig.load()
+```
+
+> 删除过 `export const defaultLogger = getLogger();`——它会在模块顶层提前用默认值初始化单例，导致主入口的 `getLogger({enabled})` 被忽略。
 
 ### 模块清单（src/modules/，共 14 个）
 
 | 文件 | 职责 |
 |------|------|
-| `config.js` | 全局默认配置：缩放/旋转/移动参数、激活尺寸阈值、拖拽/滚轮默认修饰键（`modifiers` 数组）、`e.code` 快捷键（含 A-B 与面板） |
+| `config.js` | 全局默认配置：缩放/旋转/移动参数、激活尺寸阈值、**站点黑名单**（hostname 精确匹配）、拖拽/滚轮默认修饰键（`modifiers` 数组）、`e.code` 快捷键（含 A-B 与面板）、**日志开关**（`log.enabled`） |
 | `ab-loop.js` | A-B 循环：设置起点 A / 终点 B；`timeupdate` 监听回跳；`clearA/B()` Shift+点击清空；状态纯内存、视频切换自动清零 |
-| `logger.js` | 日志单例（`getLogger()`），带时间戳与模块前缀，支持 `createChild()` |
-| `styles.js` | 玻璃浮层 CSS（静态字符串），通过 `<style>` 注入。含主/次面板、模态、倍速下拉、帮助浮层样式 |
+| `logger.js` | 日志单例（`getLogger(options)`）。格式 `[vrz]@[host] [级别]`（`timePrefix` 控制是否加 `[HH:MM:SS]`）；`createChild(module, timePrefix?)` 派生子 logger 并继承配置；`use()` 返回自身；`module` 字段保留但当前不输出 |
+| `styles.js` | 玻璃浮层 CSS（静态字符串），通过 `<style>` 注入。含主/次面板、模态、倍速下拉、帮助浮层样式；**导出 `setHTML()` 工具 + `vrz-html` Trusted Types 策略**（兼容 YouTube 等 TT 站点） |
 | `transform-engine.js` | **唯一状态源**：持有 zoom/rotation/offset；`apply()` 用动态 `<style>` 应用变换；`calculateScale()` 处理 90°；ResizeObserver 监听尺寸重算；提供 zoomIn/zoomOut/rotateLeft/rotateRight/move/reset |
 | `video-scanner`（合并于 app） | 视频发现由 `App.scan()` 承担 |
-| `ui-overlay.js` | 悬浮控制条：主栏（缩放/倍速下拉/旋转/还原/展开）+ 次级面板（方向组↑↓←→长按连发 / A-B 按钮 / 配置 / 帮助 / 缩回）；`reposition()` 跟随；hover 显隐；`ratechange` 监听同步倍速显示 |
+| `ui-overlay.js` | 悬浮控制条：主栏（缩放/倍速下拉/旋转/还原/展开）+ 次级面板（方向组↑↓←→长按连发 / A-B 按钮 / 配置 / 帮助 / 缩回）；`reposition(stageRect, videoRect)` **相对 video 底边定位**避开原生控制栏；hover 显隐；`ratechange` 同步倍速显示 |
 | `drag-handler.js` | document 级 **pointerdown**/pointermove/pointerup（比 mousedown 更早拦截）；读 `site-config` 修饰键；在 stage 内拖拽，排除按钮等控件；拖拽时关过渡保证跟手；拖拽结束后 `click` 守卫防止平台误触暂停 |
 | `wheel-handler.js` | document 级 wheel（capture）；读 `site-config` 修饰键；仅视频区域内触发 |
-| `keyboard-shortcuts.js` | `e.code` 匹配（规避 Shift 改字符问题）；缩放/旋转/移动/还原/全屏；A-B 设置清空开关；H/逗号/句号面板操作 |
-| `site-config.js` | 运行时站点配置：默认值 + IndexedDB 异步加载合并 + `subscribe()`；`checkModifiers()` 组合判定（所选键全部按下）；`getDragConfig()`/`getZoomConfig()`；min-1 强制 |
-| `storage.js` | IndexedDB 封装。DB `vrz-config`（v1），两个 store：`siteConfig`（keyPath=host）+ `meta`（keyPath=key，库说明） |
-| `config-panel.js` | 修饰键配置模态：拖拽区 + 缩放区，各为「启用/禁用 + alt/ctrl/shift 多选」；min-1 校验（取消最后一个会抖动提示）；写回 site-config |
-| `help-panel.js` | 快捷键只读浮层（含 A-B 与面板快捷键） |
-| `app.js` | **协调器**（取代旧 Initializer）：视频发现/SPA 监听/位置同步/显隐控制/清理；装配所有模块 |
+| `keyboard-shortcuts.js` | `e.code` 匹配（规避 Shift 改字符问题）；**无激活视频时不拦截**；缩放/旋转/移动/还原/全屏；A-B 设置清空开关；H/逗号/句号面板操作 |
+| `site-config.js` | 运行时站点配置：默认值 + IndexedDB 异步加载合并（`load()` 由 App 在阶段二调用）+ `subscribe()`；`checkModifiers()` 组合判定；`getDragConfig()`/`getZoomConfig()`；min-1 强制 |
+| `storage.js` | IndexedDB 封装。DB `vrz-config`（v1），两个 store：`siteConfig`（keyPath=host）+ `meta`（keyPath=key，库说明）。`openDB()` 按需调用，模块顶层无 DB 副作用 |
+| `config-panel.js` | 修饰键配置模态：拖拽区 + 缩放区，各为「启用/禁用 + alt/ctrl/shift 多选」；min-1 校验；DOM 经 `setHTML()` 注入；写回 site-config |
+| `help-panel.js` | 快捷键只读浮层（含 A-B 与面板快捷键）；DOM 经 `setHTML()` 注入 |
+| `app.js` | **协调器**：两阶段启动——构造期仅创建无副作用模块；`start()` 仅绑定 play+MutationObserver（阶段一）；首次 `activate()` 由 `_ensureHandlers()` 创建 UI/交互处理器（阶段二，幂等）；视频发现/SPA/位置同步（stage 塌陷回退 videoRect）/显隐/清理 |
 
 ### 模块依赖
 
 ```
-App（协调器）
-├── Styles（样式注入）
-├── SiteConfig（站点配置，异步 IndexedDB）
-│   └── storage.js（IndexedDB）
-├── TransformEngine（核心状态，变换应用）
-├── ABLoop（A-B 循环，纯内存，视频切换自动清零）
-├── UIOverlay（悬浮 UI，回调 onConfig/onHelp）
-│   └── ConfigPanel / HelpPanel
-├── DragHandler    → 读 SiteConfig + 写 TransformEngine
-├── WheelHandler   → 读 SiteConfig + 写 TransformEngine
-└── KeyboardShortcuts → 写 TransformEngine / 调 ABLoop / 开关面板
+主入口（黑名单 + logger 初始化）
+  └─ App（协调器）
+       ├─ SiteConfig（站点配置）── storage.js（IndexedDB，仅阶段二打开）
+       ├─ TransformEngine（核心状态）
+       ├─ ABLoop（A-B 循环，纯内存）
+       └─ [阶段二 _ensureHandlers]
+            ├─ Styles（样式注入 + setHTML/TT 策略）
+            ├─ UIOverlay（悬浮 UI，回调 onConfig/onHelp）
+            │    └── ConfigPanel / HelpPanel
+            ├─ DragHandler    → 读 SiteConfig + 写 TransformEngine
+            ├─ WheelHandler   → 读 SiteConfig + 写 TransformEngine
+            └─ KeyboardShortcuts → 写 TransformEngine / 调 ABLoop / 开关面板
 ```
 
 ### 关键设计模式
 
 - **单一职责**：每个模块只管一件事。
+- **两阶段懒初始化**：交互处理器推迟到首次激活视频才创建，无视频站点仅 2 个轻量监听（play + MutationObserver）。
 - **TransformEngine 是唯一真相源**：所有状态变更经它，`onChange` 回调通知 UI 刷新。
-- **事件驱动 + 全局监听**：Drag/Wheel/Keyboard 在 document 上监听一次，通过 `app.activeVideo` 取当前视频，无需随视频切换重绑。
-- **生命周期**：各模块提供 `destroy()`；App 提供 `stop()` 统一清理。
+- **事件驱动 + 全局监听**：Drag/Wheel/Keyboard 在 document 上监听一次（阶段二绑定），通过 `app.activeVideo` 取当前视频，无需随视频切换重绑。
+- **生命周期**：各模块提供 `destroy()`；App 提供 `stop()` 统一清理（对懒加载对象用 `?.` 保护）。
 - **SPA 感知**：MutationObserver 监听 body，防抖后 `scan()`；`play` 事件即时激活。
 - **平台无关**：完全不用平台选择器；差异化需求（如拖拽修饰键）通过每站点配置实现。
 
@@ -98,7 +124,7 @@ App（协调器）
 
 ### @run-at
 
-`document-start` —— 主入口在 `load` 后执行 `new App()`，保证 `body` 就绪。
+`document-start` —— 主入口在 `load` 后执行：先初始化 logger、做黑名单检查，再 `new App()` + `start()`，保证 `body` 就绪。
 
 ## 数据持久化（IndexedDB）
 
@@ -111,6 +137,7 @@ DB: vrz-config (version 1)
 ```
 
 - 按 `location.hostname` 做 key，天然每站点隔离。
+- `siteConfig.load()` 仅在阶段二调用 → **无视频站点不会打开/创建该 DB**。
 - `site-config.js` 加载失败时优雅降级到默认值（`modifiers: ['shift']`）。
 - **重要**：`onupgradeneeded` 内不可 `db.transaction()` 另起新事务（会抛 `InvalidStateError`），必须复用 `req.transaction` 或 `createObjectStore` 返回的句柄。
 
@@ -120,7 +147,9 @@ DB: vrz-config (version 1)
 - **旋转**：90° 双向
 - **移动**：步长 20px
 - **激活尺寸门槛**：`minActivateWidth=400, minActivateHeight=225`
+- **站点黑名单**：`s1.hdslb.com`、`message.bilibili.com`（hostname 精确匹配，命中不启动）
 - **拖拽/滚轮默认修饰键**：`['shift']`（可组合 alt/ctrl/shift，min-1）
+- **日志**：`log.enabled`（开发阶段默认开启；正式发布前可改 `false`）
 - **快捷键**（`e.code`）：
   - `Shift + Equal/Minus` 缩放
   - `Shift + KeyL/KeyR` 旋转
@@ -135,7 +164,7 @@ DB: vrz-config (version 1)
 ### 新增功能
 
 1. 在 `src/modules/` 新建/修改模块，正确 `import`。
-2. 如需协调，在 `app.js` 装配，并在 `stop()` 加入清理。
+2. 如需协调，在 `app.js` 装配（注意两阶段：有副作用的放 `_ensureHandlers()`），并在 `stop()` 加入清理（用 `?.`）。
 3. 用全局 logger：`getLogger().createChild('ModuleName')`。
 4. 注意拼接顺序约束（见上文 ⚠️）。
 5. `node build-simple.js` 构建，`node --check dist/video-rotate-zoom-drag.user.js` 校验语法。
@@ -146,17 +175,19 @@ DB: vrz-config (version 1)
 - **模块**：`src/modules/*.js`
 - **构建产物**：`dist/video-rotate-zoom-drag.user.js`
 - **用户脚本头模板**：`userscript-headers.js`（含致谢）
+- **待办看板**：`TODOS.md`（本地，已 gitignore；格式 `# TODO/DOING/DONE <说明>`）
 
 ## 测试
 
 1. **开发**：Tampermonkey 直接加载 `src/video-rotate-zoom-drag.user.js`。
 2. **生产**：`node build-simple.js` 后用 `dist/` 版本。
-3. **重点验证**：视频发现、旋转 90° 无黑边、拖拽/滚轮修饰键、配置面板持久化、信息流预览不被激活。
-4. 看控制台日志：`[时间] [VideoController:模块] [级别] ...`。
+3. **重点验证**：视频发现、旋转 90° 无黑边、拖拽/滚轮修饰键、配置面板持久化、信息流预览不被激活、黑名单站点不启动、工具条不遮挡原生进度条。
+4. 看控制台日志：`[vrz]@[host] [级别] ...`（如 `[vrz]@www.youtube.com [INFO] 已激活视频`）。
 
 ## 浏览器兼容性
 
 - 现代浏览器（ES module、IndexedDB、ResizeObserver、`requestVideoFrameCallback` 可选）
+- **Trusted Types** 兼容（YouTube 等启用 TT 的站点，经 `setHTML()` + `vrz-html` 策略）
 - Tampermonkey / Greasemonkey
 - 标准 DOM API + CSS transform
 

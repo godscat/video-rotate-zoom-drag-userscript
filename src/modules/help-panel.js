@@ -40,14 +40,14 @@ class HelpPanel {
       (it) =>
         `<div class="vrz-help-row"><span class="vrz-help-key">${it.label}</span><span class="vrz-help-desc">${it.desc}</span></div>`
     ).join('');
-    overlay.innerHTML = `
+    setHTML(overlay, `
       <div class="vrz-help" role="dialog" aria-modal="true">
         <div class="vrz-modal-title">快捷键提示</div>
         <div class="vrz-help-list">${rows}</div>
         <div class="vrz-modal-actions">
           <button class="vrz-modal-close">关闭</button>
         </div>
-      </div>`;
+      </div>`);
     overlay.addEventListener('mousedown', (e) => {
       if (e.target === overlay) this.close();
     });

@@ -7,15 +7,17 @@
 ## ✨ 功能特性
 
 - 🎯 **零平台适配**：自动发现 `<video>`，B站 / YouTube / 任意站点通用
+- 🚀 **两阶段懒启动**：无视频页面仅极轻量探测，发现视频才创建工具条与绑定交互；指定站点可加入黑名单完全不启动
 - 🔍 **缩放**：50% – 300%，步长 5%（按钮 / 键盘 / 滚轮）
 - 🔄 **双向旋转**：90° 增量，左旋 / 右旋；90°/270° 自动按 contain 反推缩放，无黑边
 - 🖱️ **拖拽平移**：按修饰键拖拽视频；可按站点配置修饰键组合
 - 🖲️ **滚轮缩放**：按修饰键 + 滚轮缩放
-- 🧭 **悬浮工具条**：跟随视频位置的玻璃浮层，鼠标移入显示、移出自动隐藏
+- 🧭 **悬浮工具条**：跟随视频位置的玻璃浮层；**自动避让原生控制栏**（相对视频底边定位），鼠标移入显示、移出自动隐藏
 - ▶ **展开面板**：方向按钮（↑↓←→，长按连发）+ A-B 循环 + 配置 + 帮助
 - ⏱ **A-B 循环**：设置起点/终点，区间内自动回跳（快捷键 `[` / `]` / `\`）
 - ⚡ **倍速播放**：0.5× / 0.75× / 1× / 1.25× / 1.5× / 2× 下拉选择
 - ⚙ **每站点配置**：拖拽/滚轮修饰键按站点独立保存（IndexedDB），可组合 alt/ctrl/shift
+- 🛡 **Trusted Types 兼容**：YouTube 等启用 TT 的站点正常工作
 - 🚫 **不误触**：尺寸过小的视频（如信息流 hover 预览）不激活
 
 ## 🚀 安装
@@ -45,7 +47,7 @@
 
 > 使用 `e.code` 匹配，不受 Shift 改变字符的影响。
 
-**A-B 循环与面板**（裸键，输入框内不触发）：
+**A-B 循环与面板**（裸键，输入框内不触发，无激活视频时不拦截）：
 
 | 快捷键 | 功能 |
 |--------|------|
@@ -75,6 +77,7 @@
 ```
 
 - 鼠标移入视频区域显示，移出约 3 秒后隐藏；暂停时常驻
+- **垂直定位**：相对视频底边定位，自动避开站点原生控制栏；视频容器塌陷时回退到视频本身的位置
 - 所有按钮 hover 显示提示（动作 + 快捷键）
 
 ## ⚙ 配置面板（每站点独立）
@@ -92,22 +95,22 @@
 
 ```
 src/
-├── video-rotate-zoom-drag.user.js   # 主入口（IIFE，启动 App）
+├── video-rotate-zoom-drag.user.js   # 主入口（IIFE：日志初始化 + 黑名单 + 启动 App）
 └── modules/
-│   ├── ab-loop.js                  # A-B 循环（起点/终点/自动回跳）
-    ├── app.js                      # 协调器：视频发现/SPA/位置同步/显隐/清理
-    ├── config.js                   # 全局默认配置（参数/修饰键/e.code 快捷键/激活阈值）
+    ├── ab-loop.js                  # A-B 循环（起点/终点/自动回跳）
+    ├── app.js                      # 协调器：两阶段懒启动 + 视频发现/SPA/位置同步/显隐/清理
+    ├── config.js                   # 全局默认配置（参数/修饰键/e.code 快捷键/激活阈值/黑名单/日志开关）
     ├── transform-engine.js         # 变换状态源：apply()/calculateScale()/zoom/rotate/move
-    ├── ui-overlay.js               # 悬浮工具条 + 展开面板 + 方向连发 + hover 显隐
+    ├── ui-overlay.js               # 悬浮工具条 + 展开面板 + 方向连发 + hover 显隐 + B方案定位
     ├── drag-handler.js             # 拖拽（document 级，读 site-config）
     ├── wheel-handler.js            # 滚轮缩放（document 级，读 site-config）
-    ├── keyboard-shortcuts.js       # 键盘快捷键（e.code 匹配）
+    ├── keyboard-shortcuts.js       # 键盘快捷键（e.code 匹配，无视频不拦截）
     ├── site-config.js              # 运行时站点配置 + IndexedDB 加载/合并 + checkModifiers
     ├── storage.js                  # IndexedDB 封装（siteConfig + meta）
-    ├── config-panel.js             # 修饰键配置模态（min-1 校验）
-    ├── help-panel.js               # 快捷键只读浮层
-    ├── styles.js                   # 玻璃浮层 CSS（静态字符串）
-    └── logger.js                   # 日志单例
+    ├── config-panel.js             # 修饰键配置模态（min-1 校验，setHTML 注入）
+    ├── help-panel.js               # 快捷键只读浮层（setHTML 注入）
+    ├── styles.js                   # 玻璃浮层 CSS + setHTML()/Trusted Types 策略
+    └── logger.js                   # 日志单例（[vrz]@[host] 格式，createChild/use）
 
 dist/
 └── video-rotate-zoom-drag.user.js  # 构建产物
@@ -128,22 +131,26 @@ node build-simple.js          # 构建到 dist/
 node --check dist/video-rotate-zoom-drag.user.js   # 语法校验
 ```
 
-`build-simple.js` 自动发现 `src/modules/*.js`，按文件名字典序拼接（剥离 import/export），再拼主入口。
+`build-simple.js` 自动发现 `src/modules/*.js`，按文件名字典序拼接（剥离 import/export），再拼主入口；并在 `@description` 末尾注入构建时间戳。
 
 ### 架构要点
 
+- **两阶段懒启动**：加载后仅 `play` + MutationObserver 探测；首次激活视频才创建 UI/交互处理器。无视频站点零监听开销
+- **站点黑名单**：`config.js` 的 `blacklist`（hostname 精确匹配），主入口命中即不启动
 - **零平台选择器**：`document.querySelector('video')` + `play` 事件 + MutationObserver（SPA）
 - **变换作用于 `<video>`**：动态 `<style>` 标签 + `video[data-vrz-active]` 选择器，不污染 inline style
-- **位置跟随**：浮层 `position:fixed`，`getBoundingClientRect()` 同步到视频父元素（stage）
+- **位置跟随**：浮层 `position:fixed`，`reposition(stageRect, videoRect)` 相对 **video 底边**定位避开原生控制栏；容器塌陷时回退 video rect
+- **Trusted Types 兼容**：`setHTML()` + `vrz-html` 策略（YouTube 等 TT 站点）
 - **尺寸门槛**：渲染尺寸 < 400×225 的视频不激活（过滤信息流预览）
-- **全局事件**：Drag/Wheel/Keyboard 在 document 监听一次，经 `app.activeVideo` 取当前视频
+- **全局事件**：Drag/Wheel/Keyboard 在 document 监听一次（阶段二绑定），经 `app.activeVideo` 取当前视频
 
-调试：看控制台 `[时间] [VideoController:模块] [级别] ...`。
+调试：看控制台 `[vrz]@[host] [级别] ...`（如 `[vrz]@www.youtube.com [INFO] 已激活视频`）。
 
 ## 🌐 兼容性
 
 - Chrome / Firefox / Edge / Safari + Tampermonkey
 - 现代浏览器（ES module、IndexedDB、ResizeObserver）
+- Trusted Types 站点（YouTube 等）
 
 ## 📄 许可证
 

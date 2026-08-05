@@ -32,7 +32,7 @@ class ConfigPanel {
     if (this.el) return;
     const overlay = document.createElement('div');
     overlay.className = 'vrz-modal-overlay hidden';
-    overlay.innerHTML = `
+    setHTML(overlay, `
       <div class="vrz-modal" role="dialog" aria-modal="true">
         <div class="vrz-modal-title">修饰键配置</div>
         <div class="vrz-modal-sub">按站点保存（当前站点：<span class="vrz-host"></span>）</div>
@@ -41,7 +41,7 @@ class ConfigPanel {
         <div class="vrz-modal-actions">
           <button class="vrz-modal-close">关闭</button>
         </div>
-      </div>`;
+      </div>`);
 
     overlay.addEventListener('mousedown', (e) => {
       if (e.target === overlay) this.close();
@@ -63,14 +63,14 @@ class ConfigPanel {
     const sec = document.createElement('div');
     sec.className = 'vrz-modal-section';
     sec.dataset.key = key;
-    sec.innerHTML = `
+    setHTML(sec, `
       <div class="vrz-modal-section-title">${SECTION_LABEL[key]}</div>
       <div class="vrz-mod-row">
         <button class="vrz-toggle" data-act="toggle">启用</button>
         <button class="vrz-mod" data-mod="alt">alt</button>
         <button class="vrz-mod" data-mod="ctrl">ctrl</button>
         <button class="vrz-mod" data-mod="shift">shift</button>
-      </div>`;
+      </div>`);
 
     const getConfig = () =>
       key === 'drag' ? this.siteConfig.getDragConfig() : this.siteConfig.getZoomConfig();
