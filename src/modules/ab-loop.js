@@ -27,12 +27,14 @@ class ABLoop {
     return this.app.activeVideo;
   }
 
-  /** 格式化秒为 MM:SS */
+  /** 格式化秒：<1h 为 MM:SS，≥1h 为 H:MM:SS */
   static format(t) {
     if (t == null) return '';
     if (!isFinite(t) || t < 0) t = 0;
-    const m = Math.floor(t / 60);
+    const h = Math.floor(t / 3600);
+    const m = Math.floor((t % 3600) / 60);
     const s = Math.floor(t % 60);
+    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
     return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }
 
