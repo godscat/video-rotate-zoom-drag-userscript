@@ -39,6 +39,7 @@ const CONFIG = {
   blacklist: [
     's1.hdslb.com',          // B 站静态资源域
     'message.bilibili.com',  // B 站消息中心
+    'challenges.cloudflare.com', // .cloudflare 人机验证
   ],
 
   // 拖拽配置（修饰键组合，默认 shift；按站点可配置并持久化）
