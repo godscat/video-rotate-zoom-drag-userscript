@@ -41,23 +41,24 @@ node build-simple.js   # 直接构建干净版本（等价 build）
 
 ## 架构
 
-### 模块清单（src/modules/，共 13 个）
+### 模块清单（src/modules/，共 14 个）
 
 | 文件 | 职责 |
 |------|------|
-| `config.js` | 全局默认配置：缩放/旋转/移动参数、激活尺寸阈值、拖拽/滚轮默认修饰键（`modifiers` 数组）、`e.code` 快捷键 |
+| `config.js` | 全局默认配置：缩放/旋转/移动参数、激活尺寸阈值、拖拽/滚轮默认修饰键（`modifiers` 数组）、`e.code` 快捷键（含 A-B 与面板） |
+| `ab-loop.js` | A-B 循环：设置起点 A / 终点 B；`timeupdate` 监听回跳；`clearA/B()` Shift+点击清空；状态纯内存、视频切换自动清零 |
 | `logger.js` | 日志单例（`getLogger()`），带时间戳与模块前缀，支持 `createChild()` |
-| `styles.js` | 玻璃浮层 CSS（静态字符串），通过 `<style>` 注入 |
+| `styles.js` | 玻璃浮层 CSS（静态字符串），通过 `<style>` 注入。含主/次面板、模态、倍速下拉、帮助浮层样式 |
 | `transform-engine.js` | **唯一状态源**：持有 zoom/rotation/offset；`apply()` 用动态 `<style>` 应用变换；`calculateScale()` 处理 90°；ResizeObserver 监听尺寸重算；提供 zoomIn/zoomOut/rotateLeft/rotateRight/move/reset |
 | `video-scanner`（合并于 app） | 视频发现由 `App.scan()` 承担 |
-| `ui-overlay.js` | 悬浮控制条：主栏（缩放/旋转/还原/展开）+ 次级面板（方向组↑↓←→长按连发 / 配置 / 帮助 / 缩回）；`reposition()` 跟随；hover 显隐 |
-| `drag-handler.js` | document 级 mousedown/move/up；读 `site-config` 修饰键；在 stage 内拖拽，排除按钮等控件；拖拽时关过渡保证跟手 |
+| `ui-overlay.js` | 悬浮控制条：主栏（缩放/倍速下拉/旋转/还原/展开）+ 次级面板（方向组↑↓←→长按连发 / A-B 按钮 / 配置 / 帮助 / 缩回）；`reposition()` 跟随；hover 显隐；`ratechange` 监听同步倍速显示 |
+| `drag-handler.js` | document 级 **pointerdown**/pointermove/pointerup（比 mousedown 更早拦截）；读 `site-config` 修饰键；在 stage 内拖拽，排除按钮等控件；拖拽时关过渡保证跟手；拖拽结束后 `click` 守卫防止平台误触暂停 |
 | `wheel-handler.js` | document 级 wheel（capture）；读 `site-config` 修饰键；仅视频区域内触发 |
-| `keyboard-shortcuts.js` | `e.code` 匹配（规避 Shift 改字符问题）；缩放/旋转/移动/还原/全屏 |
+| `keyboard-shortcuts.js` | `e.code` 匹配（规避 Shift 改字符问题）；缩放/旋转/移动/还原/全屏；A-B 设置清空开关；H/逗号/句号面板操作 |
 | `site-config.js` | 运行时站点配置：默认值 + IndexedDB 异步加载合并 + `subscribe()`；`checkModifiers()` 组合判定（所选键全部按下）；`getDragConfig()`/`getZoomConfig()`；min-1 强制 |
 | `storage.js` | IndexedDB 封装。DB `vrz-config`（v1），两个 store：`siteConfig`（keyPath=host）+ `meta`（keyPath=key，库说明） |
 | `config-panel.js` | 修饰键配置模态：拖拽区 + 缩放区，各为「启用/禁用 + alt/ctrl/shift 多选」；min-1 校验（取消最后一个会抖动提示）；写回 site-config |
-| `help-panel.js` | 快捷键只读浮层 |
+| `help-panel.js` | 快捷键只读浮层（含 A-B 与面板快捷键） |
 | `app.js` | **协调器**（取代旧 Initializer）：视频发现/SPA 监听/位置同步/显隐控制/清理；装配所有模块 |
 
 ### 模块依赖
@@ -68,11 +69,12 @@ App（协调器）
 ├── SiteConfig（站点配置，异步 IndexedDB）
 │   └── storage.js（IndexedDB）
 ├── TransformEngine（核心状态，变换应用）
+├── ABLoop（A-B 循环，纯内存，视频切换自动清零）
 ├── UIOverlay（悬浮 UI，回调 onConfig/onHelp）
 │   └── ConfigPanel / HelpPanel
 ├── DragHandler    → 读 SiteConfig + 写 TransformEngine
 ├── WheelHandler   → 读 SiteConfig + 写 TransformEngine
-└── KeyboardShortcuts → 写 TransformEngine
+└── KeyboardShortcuts → 写 TransformEngine / 调 ABLoop / 开关面板
 ```
 
 ### 关键设计模式
@@ -125,6 +127,8 @@ DB: vrz-config (version 1)
   - `Shift + Digit0` 还原
   - `Shift + Space` 全屏
   - `Shift + Arrow*` 移动
+  - `[` / `]` / `\` / `Shift+[` / `Shift+]` A-B 设置/开关/清空
+  - `H` / `,` / `.` 帮助/配置/展开面板开关
 
 ## 开发流程
 
@@ -159,5 +163,6 @@ DB: vrz-config (version 1)
 ## Git 提交与推送规则
 
 - **必须等用户测试过才能 commit**：代码改动（尤其功能逻辑）完成后，必须先让用户在浏览器中加载 `dist/video-rotate-zoom-drag.user.js` 实测验证通过，得到用户确认后才可以 `git commit`。不要改完立即提交。
+- **测试通过后同步文档再提交**：用户确认测试通过后，先更新 `README.md`（功能特性、工具条布局、快捷键表、项目结构等）和 `CLAUDE.md`（模块清单、依赖图、配置默认值等）与最新代码一致，然后再 commit。
 - **推送必须得到用户明确许可**：只有在用户明确说"推送"、"上传到 GitHub"等指令时才执行 `git push`。日常开发构建、修改代码后**不要自动推送**。
 - **首次推送前检查 remote**：确认 `origin` 指向用户指定的仓库地址。
