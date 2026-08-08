@@ -4,8 +4,8 @@
  * 结构：
  *   .vrz-container (fixed, 跟随视频父元素 rect)
  *     .vrz-controls
- *       .vrz-bar        主栏：缩小/显示/放大 │ 左旋/右旋 │ 还原 │ 展开(»)
- *       .vrz-secondary  次级（默认隐藏）：方向组(↑↓←→, 长按连发) │ 配置/帮助/缩回
+ *       .vrz-main-bar        主栏：缩小/显示/放大 │ 左旋/右旋 │ 还原 │ 展开(»)
+ *       .vrz-secondary-bar  次级（默认隐藏）：方向组(↑↓←→, 长按连发) │ 配置/帮助/缩回
  *
  * 按钮提示：全部带 title（动作 + 快捷键）。
  */
@@ -35,13 +35,13 @@ class UIOverlay {
     this.controls.className = 'vrz-controls hidden';
     this.container.appendChild(this.controls);
 
-    this.bar = document.createElement('div');
-    this.bar.className = 'vrz-bar';
-    this.controls.appendChild(this.bar);
+    this.mainBar = document.createElement('div');
+    this.mainBar.className = 'vrz-bar vrz-main-bar';
+    this.controls.appendChild(this.mainBar);
 
-    this.secondary = document.createElement('div');
-    this.secondary.className = 'vrz-secondary hidden';
-    this.controls.appendChild(this.secondary);
+    this.secondaryBar = document.createElement('div');
+    this.secondaryBar.className = 'vrz-bar vrz-secondary-bar hidden';
+    this.controls.appendChild(this.secondaryBar);
 
     this._buildMain();
     this._buildSecondary();
@@ -106,30 +106,30 @@ class UIOverlay {
 
   _buildMain() {
     // 缩小 / 显示 / 放大
-    this.bar.appendChild(this._btn('−', '缩小 (Shift + -)', () => this.engine.zoomOut()));
+    this.mainBar.appendChild(this._btn('−', '缩小 (Shift + -)', () => this.engine.zoomOut()));
 
     // 缩放档位下拉（点击展开 levels）
-    this.bar.appendChild(this._buildZoom());
+    this.mainBar.appendChild(this._buildZoom());
 
-    this.bar.appendChild(this._btn('+', '放大 (Shift + +)', () => this.engine.zoomIn()));
+    this.mainBar.appendChild(this._btn('+', '放大 (Shift + +)', () => this.engine.zoomIn()));
 
     // 倍速选择器
-    this.bar.appendChild(this._buildSpeed());
+    this.mainBar.appendChild(this._buildSpeed());
 
-    this.bar.appendChild(this._divider());
+    this.mainBar.appendChild(this._divider());
 
     // 左旋转 / 右旋转
-    this.bar.appendChild(this._btn('↺', '向左旋转 90° (Shift + L)', () => this.engine.rotateLeft()));
-    this.bar.appendChild(this._btn('↻', '向右旋转 90° (Shift + R)', () => this.engine.rotateRight()));
+    this.mainBar.appendChild(this._btn('↺', '向左旋转 90° (Shift + L)', () => this.engine.rotateLeft()));
+    this.mainBar.appendChild(this._btn('↻', '向右旋转 90° (Shift + R)', () => this.engine.rotateRight()));
 
-    this.bar.appendChild(this._divider());
+    this.mainBar.appendChild(this._divider());
 
     // 还原
-    this.bar.appendChild(this._btn('还原', '还原视频 (Shift + 0)', () => this.engine.reset(), 'vrz-reset'));
+    this.mainBar.appendChild(this._btn('R', '还原视频 (Shift + 0)', () => this.engine.reset(), 'vrz-reset'));
 
     // 展开
     this.expandBtn = this._btn('»', '展开更多按钮', () => this.toggleExpand());
-    this.bar.appendChild(this.expandBtn);
+    this.mainBar.appendChild(this.expandBtn);
   }
 
   _buildSecondary() {
@@ -142,14 +142,14 @@ class UIOverlay {
     group.appendChild(this._repeatable('↓', '下移 (Shift + ↓)', () => this.engine.move(0, step)));
     group.appendChild(this._repeatable('←', '左移 (Shift + ←)', () => this.engine.move(-step, 0)));
     group.appendChild(this._repeatable('→', '右移 (Shift + →)', () => this.engine.move(step, 0)));
-    this.secondary.appendChild(group);
+    this.secondaryBar.appendChild(group);
 
-    this.secondary.appendChild(this._divider());
+    this.secondaryBar.appendChild(this._divider());
 
     // A-B 循环组
-    this.secondary.appendChild(this._buildAB());
+    this.secondaryBar.appendChild(this._buildAB());
 
-    this.secondary.appendChild(this._divider());
+    this.secondaryBar.appendChild(this._divider());
 
     // 工具组
     const tools = document.createElement('div');
@@ -158,7 +158,7 @@ class UIOverlay {
     tools.appendChild(this._btn('?', '快捷键提示', () => this.callbacks.onHelp && this.callbacks.onHelp()));
     this.collapseBtn = this._btn('«', '收起面板', () => this.toggleExpand());
     tools.appendChild(this.collapseBtn);
-    this.secondary.appendChild(tools);
+    this.secondaryBar.appendChild(tools);
   }
 
   _buildAB() {
@@ -196,7 +196,7 @@ class UIOverlay {
 
   toggleExpand() {
     this._expanded = !this._expanded;
-    this.secondary.classList.toggle('hidden', !this._expanded);
+    this.secondaryBar.classList.toggle('hidden', !this._expanded);
     this.expandBtn.title = this._expanded ? '收起更多按钮' : '展开更多按钮';
   }
 

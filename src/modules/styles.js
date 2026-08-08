@@ -4,15 +4,16 @@
  * 设计要点：
  *  - .vrz-container: position:fixed 挂到 body，跟随视频父元素 rect
  *  - .vrz-controls:  绝对定位在容器底部居中，pointer-events:none
- *  - .vrz-bar:       玻璃胶囊，pointer-events:auto 接收点击
+ *  - .vrz-main-bar:       玻璃胶囊，pointer-events:auto 接收点击
  *
  * 不再为每个平台写选择器，所有样式通过自定义类名隔离。
  */
 
 const STYLE = `
   .vrz-container {
+    --z-index-base: 2000000000;
     position: fixed;
-    z-index: 2147483647;
+    z-index: var(--z-index-base);
     pointer-events: none;
     will-change: top, left, width, height;
   }
@@ -23,20 +24,18 @@ const STYLE = `
     left: 50%;
     transform: translateX(-50%);
     display: flex;
-    flex-direction: column-reverse;
-    gap: 6px;
     align-items: center;
     pointer-events: none;
     transition: opacity 0.2s ease;
   }
   .vrz-controls.hidden { display: none; }
-
+  /* bar 内部属性统一 */
   .vrz-bar {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    height: 32px;
-    padding: 0 10px;
+    gap: 2px;
+    height: 20px;
+    padding: 0 5px;
     border-radius: 20px;
     background-color: rgba(0, 0, 0, 0.3);
     -webkit-backdrop-filter: saturate(180%) blur(17.5px);
@@ -50,20 +49,23 @@ const STYLE = `
     user-select: none;
     -webkit-user-select: none;
   }
+  .vrz-main-bar {
+
+  }
 
   .vrz-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 26px;
-    height: 26px;
-    padding: 0 6px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 2px;
     border: 0;
-    border-radius: 13px;
+    border-radius: 5px;
     background: transparent;
     color: #fff;
     font: inherit;
-    font-size: 15px;
+    font-size: 14px;
     cursor: pointer;
     transition: background 0.15s ease, transform 0.1s ease;
   }
@@ -83,8 +85,8 @@ const STYLE = `
 
   .vrz-reset {
     background: rgba(255, 60, 60, 0.5);
-    padding: 0 10px;
-    font-size: 12px;
+    padding: 0 4px;
+    font-size: 14px;
   }
   .vrz-reset:hover { background: rgba(255, 60, 60, 0.82); }
 
@@ -101,8 +103,8 @@ const STYLE = `
     display: inline-flex;
   }
   .vrz-speed-btn {
-    min-width: 34px;
-    padding: 0 6px;
+    min-width: 24px;
+    padding: 0 2px;
     font-size: 12px;
   }
   .vrz-speed-menu {
@@ -117,7 +119,7 @@ const STYLE = `
     background-color: rgba(0, 0, 0, 0.65);
     -webkit-backdrop-filter: saturate(180%) blur(17.5px);
     backdrop-filter: saturate(180%) blur(17.5px);
-    z-index: 1;
+    z-index: calc(var(--z-index-base) + 2);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 12px;
     font-weight: 600;
@@ -143,8 +145,8 @@ const STYLE = `
     display: inline-flex;
   }
   .vrz-zoom-btn {
-    min-width: 44px;
-    padding: 0 6px;
+    min-width: 24px;
+    padding: 0 2px;
     font-size: 12px;
     font-variant-numeric: tabular-nums;
   }
@@ -159,7 +161,7 @@ const STYLE = `
     background-color: rgba(0, 0, 0, 0.65);
     -webkit-backdrop-filter: saturate(180%) blur(17.5px);
     backdrop-filter: saturate(180%) blur(17.5px);
-    z-index: 1;
+    z-index: calc(var(--z-index-base) + 2);
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 2px;
@@ -184,20 +186,14 @@ const STYLE = `
     color: #0cf;
   }
 
-  /* 次级面板 */
-  .vrz-secondary {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    height: 32px;
-    padding: 0 10px;
-    border-radius: 20px;
-    background-color: rgba(0, 0, 0, 0.3);
-    -webkit-backdrop-filter: saturate(180%) blur(17.5px);
-    backdrop-filter: saturate(180%) blur(17.5px);
-    pointer-events: auto;
+  /* 次级面板（绝对定位在 bar 右侧，保持 bar 居中不动） */
+  .vrz-secondary-bar {
+    position: absolute;
+    left: 100%;
+    bottom: 0;
+    z-index: calc(var(--z-index-base) + 1);
   }
-  .vrz-secondary.hidden { display: none; }
+  .vrz-secondary-bar.hidden { display: none; }
 
   .vrz-group {
     display: inline-flex;
@@ -209,7 +205,7 @@ const STYLE = `
   .vrz-modal-overlay {
     position: fixed;
     inset: 0;
-    z-index: 2147483647;
+    z-index: calc(var(--z-index-base) - 1);
     display: flex;
     align-items: center;
     justify-content: center;

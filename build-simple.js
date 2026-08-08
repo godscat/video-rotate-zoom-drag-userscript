@@ -103,6 +103,12 @@ class SimpleBuilder {
       .filter(file => file.endsWith('.js'))
       .sort();
 
+    // 将基础设施模块提到最前面（constants → config → util），消除 TDZ 隐患
+    const INFRA_FIRST = ['constants.js', 'config.js', 'util.js'];
+    const infra = INFRA_FIRST.filter(f => modules.includes(f));
+    const rest = modules.filter(f => !INFRA_FIRST.includes(f));
+    modules.splice(0, modules.length, ...infra, ...rest);
+
     console.log("📦 发现模块文件:", modules);
     return modules;
   }
