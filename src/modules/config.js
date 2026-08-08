@@ -71,15 +71,6 @@ const CONFIG = {
   // 倍速播放可选档位（降序）
   playbackSpeeds: [2.0, 1.5, 1.25, 1.0, 0.75, 0.5],
 
-  // IndexedDB 存储结构（DB 名 / 版本 / store 名）
-  db: {
-    name: 'vrz-config',
-    version: 1,
-    storeSite: 'siteConfig',
-    storeMeta: 'meta',
-    metaKey: 'about',
-  },
-
   // 键盘快捷键：使用 e.code（物理按键，不受输入法/Shift 影响）
   // mod: 'ctrl' | 'shift' | 'alt' | 'none'
   shortcuts: {

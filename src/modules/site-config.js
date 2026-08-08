@@ -3,7 +3,7 @@
  *
  * 职责：
  *  1. 持有当前站点的 drag/zoom 修饰键配置（默认值来自 CONFIG）
- *  2. 启动时从 IndexedDB 异步加载并合并
+ *  2. 启动时从 GM_setValue 加载并合并（key 格式 vrz-site:{host}）
  *  3. 提供 getDragConfig()/getZoomConfig() 供 handler 读取
  *  4. setDrag()/setZoom() 写入运行时 + 持久化 + 通知订阅者（配置面板用）
  *
@@ -14,8 +14,7 @@
 
 import CONFIG from './config.js';
 import { CONSTANTS } from './constants.js';
-
-import { loadSiteConfig, saveSiteConfig } from './storage.js';
+import { getPref, setPref } from './util.js';
 import { getLogger } from './logger.js';
 
 function cloneDefaults() {
@@ -45,10 +44,10 @@ class SiteConfig {
     this._loaded = false;
   }
 
-  /** 异步加载本站点配置（失败则保持默认值） */
-  async load() {
+  /** 加载本站点配置（经 GM_setValue；失败则保持默认值） */
+  load() {
     try {
-      const saved = await loadSiteConfig(this.host);
+      const saved = getPref('vrz-site:' + this.host, null);
       if (saved) {
         const dragMods = normModifiers(saved.drag && saved.drag.modifiers);
         const zoomMods = normModifiers(saved.zoom && saved.zoom.modifiers);
@@ -67,7 +66,6 @@ class SiteConfig {
     } catch (e) {
       this.logger.warn('加载站点配置失败，使用默认值', e);
     }
-    return this.data;
   }
 
   getDragConfig() {
@@ -122,14 +120,13 @@ class SiteConfig {
     });
   }
 
-  async _persist() {
+  _persist() {
     try {
-      await saveSiteConfig(this.host, this.data);
+      setPref('vrz-site:' + this.host, this.data);
     } catch (e) {
       this.logger.warn('保存站点配置失败', e);
     }
   }
 }
-
 
 export { SiteConfig };

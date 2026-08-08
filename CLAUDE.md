@@ -16,7 +16,7 @@
 - **变换作用于 `<video>` 本身**：通过动态 `<style>` 标签 + `video[data-vrz-active]` 属性选择器注入 `transform`，不污染 inline style。
 - **Trusted Types 兼容**：`util.setHTML()` + 单例 `vrz-html` 策略，兼容 YouTube 等启用 TT 的站点；无 TT 环境降级为直接赋值。
 - **90° 旋转无黑边**：`calculateScale()` 按 `object-fit:contain` 反推缩放比例。
-- **每站点配置**：拖拽/滚轮的修饰键组合按 `location.hostname` 存入 IndexedDB；`siteConfig.load()` 推迟到阶段二，无视频站点不打开 DB。
+- **每站点配置**：拖拽/滚轮的修饰键组合按 `location.hostname` 经 GM_setValue 保存（key 格式 `vrz-site:{host}`）；`siteConfig.load()` 推迟到阶段二，无视频站点不读写。
 - **尺寸门槛**：渲染尺寸 < 400×225 的视频（如信息流 hover 预览）不激活，避免误触。
 
 ## 构建系统
@@ -65,7 +65,7 @@ node build-simple.js   # 直接构建干净版本（等价 build）
 
 > 删除过 `export const defaultLogger = getLogger();`——它会在模块顶层提前用默认值初始化单例，导致主入口的 `getLogger({enabled})` 被忽略。
 
-### 模块清单（src/modules/，共 16 个，按文件名字典序）
+### 模块清单（src/modules/，共 15 个，按文件名字典序）
 
 模块职责分三层：**config.js**（业务参数）/ **constants.js**（类型化技术映射）/ **util.js**（工具函数）是基础设施；其余为功能模块。
 
@@ -97,10 +97,7 @@ document 级 **pointerdown**/pointermove/pointerup（比 mousedown 更早拦截�
 日志单例（`getLogger(options)`）。格式 `[vrz]@[host] [级别]`（`timePrefix` 控制是否加 `[HH:MM:SS]`）；`createChild(module, timePrefix?)` 派生子 logger 并继承配置；`use()` 返回自身；`module` 字段保留但当前不输出。
 
 #### `site-config.js`
-运行时站点配置：默认值 + IndexedDB 异步加载合并（`load()` 由 App 在阶段二调用）+ `subscribe()`；`normModifiers()` 经 `CONSTANTS.VALID_MODS` 过滤；`getDragConfig()`/`getZoomConfig()`；min-1 强制。`checkModifiers` 已移至 `util.js`。
-
-#### `storage.js`
-IndexedDB 封装。DB 名/版本/store 名读自 `CONFIG.db`；两个 store：`siteConfig`（keyPath=host）+ `meta`（keyPath=key，库说明）。`openDB()` 按需调用，模块顶层无 DB 副作用。
+运行时站点配置：默认值 + GM_setValue 加载合并（key 格式 `vrz-site:{host}`；`load()` 由 App 在阶段二调用）+ `subscribe()`；`normModifiers()` 经 `CONSTANTS.VALID_MODS` 过滤；`getDragConfig()`/`getZoomConfig()`；min-1 强制。`checkModifiers` 已移至 `util.js`。
 
 #### `styles.js`
 玻璃浮层 CSS（静态字符串），通过 `<style>` 注入。含主/次面板、模态、倍速下拉、帮助浮层样式。
@@ -124,7 +121,7 @@ document 级 wheel（capture）；读 `site-config` 修饰键（经 `util.checkM
 ```
 主入口（黑名单 + logger 初始化）
   └─ App（协调器）
-       ├─ SiteConfig（站点配置）── storage.js（IndexedDB，仅阶段二打开）
+       ├─ SiteConfig（站点配置，GM_setValue 持久化）
        ├─ TransformEngine（核心状态）
        ├─ ABLoop（A-B 循环，纯内存）
        └─ [阶段二 _ensureHandlers]
@@ -165,20 +162,14 @@ document 级 wheel（capture）；读 `site-config` 修饰键（经 `util.checkM
 
 `document-start` —— 主入口在 `load` 后执行：先初始化 logger、做黑名单检查，再 `new App()` + `start()`，保证 `body` 就绪。
 
-## 数据持久化（IndexedDB）
+## 数据持久化（GM_setValue / GM_getValue）
 
-```
-DB: vrz-config (version 1)          ← 名/版本/store 名定义在 CONFIG.db
-├── store: siteConfig   keyPath: host
-│     { host, drag:{enabled,modifiers}, zoom:{enabled,modifiers} }
-└── store: meta         keyPath: key
-      { key:'about', purpose, detail, stores, createdAt }   ← 库说明，devtools 可见
-```
+所有配置统一经 Tampermonkey 的 `GM_setValue`/`GM_getValue` API 存储（跨 origin 的脚本全局空间）。
 
-- 按 `location.hostname` 做 key，天然每站点隔离。
-- `siteConfig.load()` 仅在阶段二调用 → **无视频站点不会打开/创建该 DB**。
-- `site-config.js` 加载失败时优雅降级到默认值（`modifiers: ['shift']`）。
-- **重要**：`onupgradeneeded` 内不可 `db.transaction()` 另起新事务（会抛 `InvalidStateError`），必须复用 `req.transaction` 或 `createObjectStore` 返回的句柄。
+- **站点修饰键配置**：key 格式 `vrz-site:{host}`（如 `vrz-site:www.bilibili.com`），值为 `{ drag:{enabled,modifiers}, zoom:{enabled,modifiers} }`。`site-config.js` 的 `load()`/`_persist()` 读写。
+- **全局偏好**（暂停时常驻等）：key 如 `vrz-persist-on-pause`，值为布尔。`util.getPref/setPref` 封装。
+- `siteConfig.load()` 仅在阶段二调用 → 无视频站点不读 GM 配置。
+- 加载/保存失败时优雅降级到默认值。
 
 ## 配置与快捷键默认值
 
@@ -191,7 +182,6 @@ DB: vrz-config (version 1)          ← 名/版本/store 名定义在 CONFIG.db
 - **UI 工具条偏移**：`ui.bottomBase=14`（相对 video 底边）
 - **暂停时常驻**：`ui.persistOnPause=false`（默认暂停后自动隐藏；配置面板可切换，经 GM 全局生效）
 - **倍速档位**：`playbackSpeeds=[2, 1.5, 1.25, 1, 0.75, 0.5]`
-- **IndexedDB**：`db={name:'vrz-config', version:1, storeSite:'siteConfig', storeMeta:'meta', metaKey:'about'}`
 - **日志**：`log.enabled`（开发阶段默认开启；正式发布前可改 `false`）
 - **快捷键**（`e.code`）：
   - `Shift + Equal/Minus` 缩放

@@ -95,7 +95,7 @@
 
 - **暂停时常驻**：开启后视频暂停时工具条常驻显示；关闭则暂停后自动隐藏（默认）。经 `GM_setValue` 全局保存
 
-查看存储：F12 → Application → IndexedDB → `vrz-config`（含 `siteConfig` 与 `meta` 两个 store）。
+配置经 GM_setValue 保存（Tampermonkey 脚本存储）。F12 → Tampermonkey 仪表盘 → 脚本设置可查看。
 
 ## 📁 项目结构
 
@@ -112,9 +112,8 @@ src/
     ├── drag-handler.js             # 拖拽（document 级，util.checkModifiers）
     ├── wheel-handler.js            # 滚轮缩放（document 级，util.checkModifiers）
     ├── keyboard-shortcuts.js       # 键盘快捷键（e.code 匹配，无视频不拦截）
-    ├── site-config.js              # 运行时站点配置 + IndexedDB 加载/合并
-    ├── storage.js                  # IndexedDB 封装（读 CONFIG.db，siteConfig + meta）
-    ├── config-panel.js             # 修饰键配置模态（min-1 校验，util.setHTML 注入）
+    ├── site-config.js              # 运行时站点配置（GM_setValue，key vrz-site:{host}）
+    ├── config-panel.js             # 配置面板：修饰键（按站点）+ 显示选项（全局）
     ├── help-panel.js               # 快捷键只读浮层（util.setHTML 注入）
     ├── styles.js                   # 玻璃浮层 CSS（静态字符串，<style> 注入）
     ├── logger.js                   # 日志单例（[vrz]@[host] 格式，createChild/use）
