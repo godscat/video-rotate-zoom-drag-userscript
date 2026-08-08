@@ -38,7 +38,7 @@ const STYLE = `
     height: 32px;
     padding: 0 10px;
     border-radius: 20px;
-    background-color: rgba(0, 0, 0, 0.55);
+    background-color: rgba(0, 0, 0, 0.3);
     -webkit-backdrop-filter: saturate(180%) blur(17.5px);
     backdrop-filter: saturate(180%) blur(17.5px);
     pointer-events: auto;
@@ -301,27 +301,6 @@ const STYLE = `
   }
   .vrz-help-desc { opacity: 0.75; }
 `;
-
-let __vrzTTPolicy;
-function __vrzGetTTPolicy() {
-  if (__vrzTTPolicy !== undefined) return __vrzTTPolicy;
-  const tt = window.trustedTypes;
-  if (tt && typeof tt.createPolicy === 'function') {
-    try {
-      __vrzTTPolicy = tt.createPolicy('vrz-html', { createHTML: (s) => s });
-    } catch (e) {
-      __vrzTTPolicy = null;
-    }
-  } else {
-    __vrzTTPolicy = null;
-  }
-  return __vrzTTPolicy;
-}
-
-function setHTML(el, html) {
-  const p = __vrzGetTTPolicy();
-  el.innerHTML = p ? p.createHTML(html) : html;
-}
 
 class Styles {
   static inject() {

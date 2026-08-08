@@ -11,7 +11,7 @@
  *  - 任一变更立即写回 SiteConfig（持久化到 IndexedDB，按站点保存）
  */
 
-import { VALID_MODS } from './site-config.js';
+import { setHTML } from "./util";
 
 const SECTION_LABEL = {
   drag: '配置鼠标拖拽「前置键」',

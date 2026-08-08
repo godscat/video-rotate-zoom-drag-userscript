@@ -13,10 +13,10 @@
  */
 
 import CONFIG from './config.js';
+import { CONSTANTS } from './constants.js';
+
 import { loadSiteConfig, saveSiteConfig } from './storage.js';
 import { getLogger } from './logger.js';
-
-const VALID_MODS = ['alt', 'ctrl', 'shift'];
 
 function cloneDefaults() {
   return {
@@ -33,7 +33,7 @@ function cloneDefaults() {
 
 function normModifiers(mods) {
   if (!Array.isArray(mods)) return [];
-  return mods.filter((m) => VALID_MODS.includes(m));
+  return mods.filter((m) => CONSTANTS.VALID_MODS.includes(m));
 }
 
 class SiteConfig {
@@ -131,20 +131,5 @@ class SiteConfig {
   }
 }
 
-/**
- * 修饰键组合匹配：所选 modifiers 全部按下才返回 true
- * @param {KeyboardEvent|MouseEvent|WheelEvent} e
- * @param {string[]} modifiers
- * @returns {boolean}
- */
-function checkModifiers(e, modifiers) {
-  if (!modifiers || modifiers.length === 0) return false;
-  return modifiers.every((m) => {
-    if (m === 'ctrl') return !!(e.ctrlKey || e.metaKey);
-    if (m === 'shift') return !!e.shiftKey;
-    if (m === 'alt') return !!e.altKey;
-    return false;
-  });
-}
 
-export { SiteConfig, checkModifiers, VALID_MODS };
+export { SiteConfig };

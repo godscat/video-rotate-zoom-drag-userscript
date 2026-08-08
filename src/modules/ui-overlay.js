@@ -10,10 +10,8 @@
  * 按钮提示：全部带 title（动作 + 快捷键）。
  */
 
-import CONFIG, { formatText } from './config.js';
-
-// 工具条距 video 底边的基础偏移（B 方案：相对 video 底边定位的兜底值）
-const UI_BOTTOM_BASE = 14;
+import CONFIG from './config.js';
+import { formatTime, formatText } from './util.js';
 
 class UIOverlay {
   /**
@@ -164,16 +162,6 @@ class UIOverlay {
     this.secondary.appendChild(tools);
   }
 
-  _fmtTime(t) {
-    if (t == null) return '';
-    if (!isFinite(t) || t < 0) t = 0;
-    const h = Math.floor(t / 3600);
-    const m = Math.floor((t % 3600) / 60);
-    const s = Math.floor(t % 60);
-    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-  }
-
   _buildAB() {
     const group = document.createElement('div');
     group.className = 'vrz-group vrz-ab';
@@ -198,8 +186,8 @@ class UIOverlay {
   _updateAB(st) {
     const a = st.startTime;
     const b = st.endTime;
-    this.btnA.textContent = a != null ? `A [${this._fmtTime(a)}]` : 'A';
-    this.btnB.textContent = b != null ? `B [${this._fmtTime(b)}]` : 'B';
+    this.btnA.textContent = a != null ? `A [${formatTime(a)}]` : 'A';
+    this.btnB.textContent = b != null ? `B [${formatTime(b)}]` : 'B';
     this.btnL.textContent = st.isLooping ? 'S' : 'L';
     this.btnL.title = st.isLooping ? '停止循环' : '开始 A-B 循环';
     this.btnL.classList.toggle('vrz-on', st.isLooping);
@@ -258,7 +246,7 @@ class UIOverlay {
     // gap = stage 底到 video 底；gap>0（控制栏在 video 下方）时工具条上移贴 video 底边。
     if (videoRect && videoRect.height > 0) {
       const gap = r.bottom - videoRect.bottom;
-      const bottom = Math.max(UI_BOTTOM_BASE, gap + UI_BOTTOM_BASE);
+      const bottom = Math.max(CONFIG.ui.bottomBase, gap + CONFIG.ui.bottomBase);
       this.controls.style.bottom = bottom + 'px';
     }
   }
@@ -276,7 +264,6 @@ class UIOverlay {
   }
 
   _buildSpeed() {
-    const SPEEDS = [2.0, 1.5, 1.25, 1.0, 0.75, 0.5];
     this.speedWrap = document.createElement('div');
     this.speedWrap.className = 'vrz-speed-wrap';
 
@@ -292,7 +279,7 @@ class UIOverlay {
 
     this.speedMenu = document.createElement('div');
     this.speedMenu.className = 'vrz-speed-menu hidden';
-    SPEEDS.forEach((s) => {
+    CONFIG.playbackSpeeds.forEach((s) => {
       const item = document.createElement('div');
       item.className = 'vrz-speed-item';
       item.textContent = this._speedLabel(s);

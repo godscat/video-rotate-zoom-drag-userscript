@@ -10,6 +10,7 @@
  */
 
 import { getLogger } from './logger.js';
+import { formatTime } from './util.js';
 
 class ABLoop {
   constructor(app) {
@@ -23,19 +24,12 @@ class ABLoop {
     this.onChange = null;
   }
 
+  /**
+   * 获取当前绑定的视频
+   * @returns {HTMLVideoElement}
+   */
   get video() {
     return this.app.activeVideo;
-  }
-
-  /** 格式化秒：<1h 为 MM:SS，≥1h 为 H:MM:SS */
-  static format(t) {
-    if (t == null) return '';
-    if (!isFinite(t) || t < 0) t = 0;
-    const h = Math.floor(t / 3600);
-    const m = Math.floor((t % 3600) / 60);
-    const s = Math.floor(t % 60);
-    if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   }
 
   /** 设置起点 A（若 A 落在 B 之后则清空 B） */
@@ -44,7 +38,7 @@ class ABLoop {
     if (!v) return;
     this.startTime = v.currentTime;
     if (this.endTime != null && this.endTime <= this.startTime) this.endTime = null;
-    this.logger.info(`A = ${ABLoop.format(this.startTime)}`);
+    this.logger.info(`A = ${formatTime(this.startTime)}`);
     this._notify();
   }
 
@@ -59,7 +53,7 @@ class ABLoop {
       return;
     }
     this.endTime = t;
-    this.logger.info(`B = ${ABLoop.format(this.endTime)}`);
+    this.logger.info(`B = ${formatTime(this.endTime)}`);
     this._notify();
   }
 
@@ -82,7 +76,7 @@ class ABLoop {
     v.addEventListener('timeupdate', this._boundHandler);
     this.isLooping = true;
     v.currentTime = this.startTime;
-    this.logger.info(`开始循环 ${ABLoop.format(this.startTime)} → ${ABLoop.format(this.endTime)}`);
+    this.logger.info(`开始循环 ${formatTime(this.startTime)} → ${formatTime(this.endTime)}`);
     this._notify();
     return true;
   }

@@ -30,7 +30,7 @@ class KeyboardShortcuts {
     let modOk = true;
     switch ((mod || 'none').toLowerCase()) {
       case 'ctrl':
-        modOk = e.ctrlKey || e.metaKey;
+        modOk = e.ctrlKey;
         break;
       case 'shift':
         modOk = e.shiftKey;

@@ -14,7 +14,7 @@
 - **悬浮浮层 UI**：控制条为 `position:fixed` 容器挂到 `body`，通过 `getBoundingClientRect()` 实时跟随视频父元素（stage）位置——而非塞进平台自己的控制栏。
 - **工具条避让原生控制栏**：`reposition(stageRect, videoRect)` 相对 **video 底边**定位（而非 stage 底边），自动避开 stage 内的原生控制栏；stage 塌陷（如 YouTube `.html5-video-container`）时回退到 video rect。
 - **变换作用于 `<video>` 本身**：通过动态 `<style>` 标签 + `video[data-vrz-active]` 属性选择器注入 `transform`，不污染 inline style。
-- **Trusted Types 兼容**：`setHTML()` 工具 + 单例 `vrz-html` 策略，兼容 YouTube 等启用 TT 的站点；无 TT 环境降级为直接赋值。
+- **Trusted Types 兼容**：`util.setHTML()` + 单例 `vrz-html` 策略，兼容 YouTube 等启用 TT 的站点；无 TT 环境降级为直接赋值。
 - **90° 旋转无黑边**：`calculateScale()` 按 `object-fit:contain` 反推缩放比例。
 - **每站点配置**：拖拽/滚轮的修饰键组合按 `location.hostname` 存入 IndexedDB；`siteConfig.load()` 推迟到阶段二，无视频站点不打开 DB。
 - **尺寸门槛**：渲染尺寸 < 400×225 的视频（如信息流 hover 预览）不激活，避免误触。
@@ -65,25 +65,59 @@ node build-simple.js   # 直接构建干净版本（等价 build）
 
 > 删除过 `export const defaultLogger = getLogger();`——它会在模块顶层提前用默认值初始化单例，导致主入口的 `getLogger({enabled})` 被忽略。
 
-### 模块清单（src/modules/，共 14 个）
+### 模块清单（src/modules/，共 16 个，按文件名字典序）
 
-| 文件 | 职责 |
-|------|------|
-| `config.js` | 全局默认配置：缩放/旋转/移动参数、激活尺寸阈值、**站点黑名单**（hostname 精确匹配）、拖拽/滚轮默认修饰键（`modifiers` 数组）、`e.code` 快捷键（含 A-B 与面板）、**日志开关**（`log.enabled`） |
-| `ab-loop.js` | A-B 循环：设置起点 A / 终点 B；`timeupdate` 监听回跳；`clearA/B()` Shift+点击清空；状态纯内存、视频切换自动清零 |
-| `logger.js` | 日志单例（`getLogger(options)`）。格式 `[vrz]@[host] [级别]`（`timePrefix` 控制是否加 `[HH:MM:SS]`）；`createChild(module, timePrefix?)` 派生子 logger 并继承配置；`use()` 返回自身；`module` 字段保留但当前不输出 |
-| `styles.js` | 玻璃浮层 CSS（静态字符串），通过 `<style>` 注入。含主/次面板、模态、倍速下拉、帮助浮层样式；**导出 `setHTML()` 工具 + `vrz-html` Trusted Types 策略**（兼容 YouTube 等 TT 站点） |
-| `transform-engine.js` | **唯一状态源**：持有 zoom/rotation/offset；`apply()` 用动态 `<style>` 应用变换；`calculateScale()` 处理 90°；ResizeObserver 监听尺寸重算；提供 zoomIn/zoomOut/rotateLeft/rotateRight/move/reset |
-| `video-scanner`（合并于 app） | 视频发现由 `App.scan()` 承担 |
-| `ui-overlay.js` | 悬浮控制条：主栏（缩放/倍速下拉/旋转/还原/展开）+ 次级面板（方向组↑↓←→长按连发 / A-B 按钮 / 配置 / 帮助 / 缩回）；`reposition(stageRect, videoRect)` **相对 video 底边定位**避开原生控制栏；hover 显隐；`ratechange` 同步倍速显示 |
-| `drag-handler.js` | document 级 **pointerdown**/pointermove/pointerup（比 mousedown 更早拦截）；读 `site-config` 修饰键；在 stage 内拖拽，排除按钮等控件；拖拽时关过渡保证跟手；拖拽结束后 `click` 守卫防止平台误触暂停 |
-| `wheel-handler.js` | document 级 wheel（capture）；读 `site-config` 修饰键；仅视频区域内触发 |
-| `keyboard-shortcuts.js` | `e.code` 匹配（规避 Shift 改字符问题）；**无激活视频时不拦截**；缩放/旋转/移动/还原/全屏；A-B 设置清空开关；H/逗号/句号面板操作 |
-| `site-config.js` | 运行时站点配置：默认值 + IndexedDB 异步加载合并（`load()` 由 App 在阶段二调用）+ `subscribe()`；`checkModifiers()` 组合判定；`getDragConfig()`/`getZoomConfig()`；min-1 强制 |
-| `storage.js` | IndexedDB 封装。DB `vrz-config`（v1），两个 store：`siteConfig`（keyPath=host）+ `meta`（keyPath=key，库说明）。`openDB()` 按需调用，模块顶层无 DB 副作用 |
-| `config-panel.js` | 修饰键配置模态：拖拽区 + 缩放区，各为「启用/禁用 + alt/ctrl/shift 多选」；min-1 校验；DOM 经 `setHTML()` 注入；写回 site-config |
-| `help-panel.js` | 快捷键只读浮层（含 A-B 与面板快捷键）；DOM 经 `setHTML()` 注入 |
-| `app.js` | **协调器**：两阶段启动——构造期仅创建无副作用模块；`start()` 仅绑定 play+MutationObserver（阶段一）；首次 `activate()` 由 `_ensureHandlers()` 创建 UI/交互处理器（阶段二，幂等）；视频发现/SPA/位置同步（stage 塌陷回退 videoRect）/显隐/清理 |
+模块职责分三层：**config.js**（业务参数）/ **constants.js**（类型化技术映射）/ **util.js**（工具函数）是基础设施；其余为功能模块。
+
+#### `ab-loop.js`
+A-B 循环：设置起点 A / 终点 B；`timeupdate` 监听回跳；`clearA/B()` Shift+点击清空；状态纯内存、视频切换自动清零。时间显示用 `util.formatTime`。
+
+#### `app.js`
+**协调器**：两阶段启动——构造期仅创建无副作用模块（SiteConfig/TransformEngine/ABLoop）；`start()` 仅绑定 play+MutationObserver（阶段一）；首次 `activate()` 由 `_ensureHandlers()` 创建 UI/交互处理器（阶段二，幂等）；视频发现/SPA/位置同步（stage 塌陷回退 videoRect）/显隐/清理。
+
+#### `config.js`
+全局默认配置（业务参数）：缩放/旋转/移动/AB循环参数、激活尺寸阈值、站点黑名单、拖拽/滚轮默认修饰键、`e.code` 快捷键、日志开关、UI 偏移（`ui.bottomBase`）、倍速档位（`playbackSpeeds`）、IndexedDB 结构（`db.*`）。`export default CONFIG`。
+
+#### `config-panel.js`
+修饰键配置模态：拖拽区 + 缩放区，各为「启用/禁用 + alt/ctrl/shift 多选」；min-1 校验；DOM 经 `util.setHTML()` 注入；写回 site-config。
+
+#### `constants.js`
+**技术映射表**（带 `@typedef`）：`CONSTANTS.VALID_MODS` / `VALID_MODS_KEYNAMES`（修饰键→KeyboardEvent 键名）/ `VALID_MODS_KEYDISPLAY`（Windows/Mac 显示名）。仅放类型化的基础设施常量，业务数值参数归 `config.js`。
+
+#### `drag-handler.js`
+document 级 **pointerdown**/pointermove/pointerup（比 mousedown 更早拦截）；读 `site-config` 修饰键（经 `util.checkModifiers`）；在 stage 内拖拽，排除按钮等控件；拖拽时关过渡保证跟手；拖拽结束后 `click` 守卫防止平台误触暂停。
+
+#### `help-panel.js`
+快捷键只读浮层（含 A-B 与面板快捷键）；DOM 经 `util.setHTML()` 注入。
+
+#### `keyboard-shortcuts.js`
+`e.code` 匹配（规避 Shift 改字符问题）；**无激活视频时不拦截**；缩放/旋转/移动/还原/全屏；A-B 设置清空开关；H/逗号/句号面板操作。
+
+#### `logger.js`
+日志单例（`getLogger(options)`）。格式 `[vrz]@[host] [级别]`（`timePrefix` 控制是否加 `[HH:MM:SS]`）；`createChild(module, timePrefix?)` 派生子 logger 并继承配置；`use()` 返回自身；`module` 字段保留但当前不输出。
+
+#### `site-config.js`
+运行时站点配置：默认值 + IndexedDB 异步加载合并（`load()` 由 App 在阶段二调用）+ `subscribe()`；`normModifiers()` 经 `CONSTANTS.VALID_MODS` 过滤；`getDragConfig()`/`getZoomConfig()`；min-1 强制。`checkModifiers` 已移至 `util.js`。
+
+#### `storage.js`
+IndexedDB 封装。DB 名/版本/store 名读自 `CONFIG.db`；两个 store：`siteConfig`（keyPath=host）+ `meta`（keyPath=key，库说明）。`openDB()` 按需调用，模块顶层无 DB 副作用。
+
+#### `styles.js`
+玻璃浮层 CSS（静态字符串），通过 `<style>` 注入。含主/次面板、模态、倍速下拉、帮助浮层样式。
+
+#### `transform-engine.js`
+**唯一状态源**：持有 zoom/rotation/offset；`apply()` 用动态 `<style>` 应用变换；`calculateScale()` 处理 90°；ResizeObserver 监听尺寸重算；提供 zoomIn/zoomOut/rotateLeft/rotateRight/move/reset。
+
+#### `ui-overlay.js`
+悬浮控制条：主栏（缩放/倍速下拉/旋转/还原/展开）+ 次级面板（方向组↑↓←→长按连发 / A-B 按钮 / 配置 / 帮助 / 缩回）；`reposition(stageRect, videoRect)` **相对 video 底边定位**（`CONFIG.ui.bottomBase`）避开原生控制栏；hover 显隐；`ratechange` 同步倍速显示；倍速档位读 `CONFIG.playbackSpeeds`；时间显示用 `util.formatTime`，缩放% 用 `util.formatText`。
+
+#### `util.js`
+**工具函数集**（函数声明，跨模块提升可用）：`checkModifiers`（修饰键匹配，读 `CONSTANTS.VALID_MODS_KEYNAMES`）、`formatTime`（时间格式化，读 `CONFIG.abloop.showMilliseconds`）、`formatText`（`{value}` 占位替换）、`fillPrefixWith`、`setHTML`（安全 innerHTML，兼容 Trusted Types，单例 `vrz-html` 策略）。
+
+#### `wheel-handler.js`
+document 级 wheel（capture）；读 `site-config` 修饰键（经 `util.checkModifiers`）；仅视频区域内触发。
+
+> `video-scanner` 合并于 `app.js`，视频发现由 `App.scan()` 承担。
 
 ### 模块依赖
 
@@ -94,17 +128,21 @@ node build-simple.js   # 直接构建干净版本（等价 build）
        ├─ TransformEngine（核心状态）
        ├─ ABLoop（A-B 循环，纯内存）
        └─ [阶段二 _ensureHandlers]
-            ├─ Styles（样式注入 + setHTML/TT 策略）
+            ├─ Styles（样式注入）
             ├─ UIOverlay（悬浮 UI，回调 onConfig/onHelp）
             │    └── ConfigPanel / HelpPanel
             ├─ DragHandler    → 读 SiteConfig + 写 TransformEngine
             ├─ WheelHandler   → 读 SiteConfig + 写 TransformEngine
             └─ KeyboardShortcuts → 写 TransformEngine / 调 ABLoop / 开关面板
+
+基础设施（被多模块依赖）：
+  config.js（CONFIG 业务参数）· constants.js（CONSTANTS 修饰键映射）· util.js（checkModifiers/formatTime/formatText/setHTML）
 ```
 
 ### 关键设计模式
 
 - **单一职责**：每个模块只管一件事。
+- **三层基础设施**：`config.js`（业务参数）/ `constants.js`（类型化映射）/ `util.js`（工具函数）分离，边界清晰不重合。
 - **两阶段懒初始化**：交互处理器推迟到首次激活视频才创建，无视频站点仅 2 个轻量监听（play + MutationObserver）。
 - **TransformEngine 是唯一真相源**：所有状态变更经它，`onChange` 回调通知 UI 刷新。
 - **事件驱动 + 全局监听**：Drag/Wheel/Keyboard 在 document 上监听一次（阶段二绑定），通过 `app.activeVideo` 取当前视频，无需随视频切换重绑。
@@ -129,7 +167,7 @@ node build-simple.js   # 直接构建干净版本（等价 build）
 ## 数据持久化（IndexedDB）
 
 ```
-DB: vrz-config (version 1)
+DB: vrz-config (version 1)          ← 名/版本/store 名定义在 CONFIG.db
 ├── store: siteConfig   keyPath: host
 │     { host, drag:{enabled,modifiers}, zoom:{enabled,modifiers} }
 └── store: meta         keyPath: key
@@ -147,8 +185,11 @@ DB: vrz-config (version 1)
 - **旋转**：90° 双向
 - **移动**：步长 20px
 - **激活尺寸门槛**：`minActivateWidth=400, minActivateHeight=225`
-- **站点黑名单**：`s1.hdslb.com`、`message.bilibili.com`（hostname 精确匹配，命中不启动）
+- **站点黑名单**：`s1.hdslb.com`、`message.bilibili.com`、`challenges.cloudflare.com`（hostname 精确匹配，命中不启动）
 - **拖拽/滚轮默认修饰键**：`['shift']`（可组合 alt/ctrl/shift，min-1）
+- **UI 工具条偏移**：`ui.bottomBase=14`（相对 video 底边）
+- **倍速档位**：`playbackSpeeds=[2, 1.5, 1.25, 1, 0.75, 0.5]`
+- **IndexedDB**：`db={name:'vrz-config', version:1, storeSite:'siteConfig', storeMeta:'meta', metaKey:'about'}`
 - **日志**：`log.enabled`（开发阶段默认开启；正式发布前可改 `false`）
 - **快捷键**（`e.code`）：
   - `Shift + Equal/Minus` 缩放
@@ -187,7 +228,7 @@ DB: vrz-config (version 1)
 ## 浏览器兼容性
 
 - 现代浏览器（ES module、IndexedDB、ResizeObserver、`requestVideoFrameCallback` 可选）
-- **Trusted Types** 兼容（YouTube 等启用 TT 的站点，经 `setHTML()` + `vrz-html` 策略）
+- **Trusted Types** 兼容（YouTube 等启用 TT 的站点，经 `util.setHTML()` + `vrz-html` 策略）
 - Tampermonkey / Greasemonkey
 - 标准 DOM API + CSS transform
 

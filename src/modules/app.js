@@ -156,6 +156,8 @@ class App {
   /**
    * 判断是否为"主视频"：渲染尺寸达到阈值，且未隐藏。
    * 用于过滤 B 站等信息流 hover 出来的小尺寸预览视频。
+   * @param {HTMLVideoElement} v
+   * @returns {boolean}
    */
   _isPrimaryVideo(v) {
     if (!v || !v.isConnected) return false;
@@ -189,6 +191,7 @@ class App {
 
   /**
    * 激活目标视频
+   * @param {HTMLVideoElement} video
    */
   activate(video) {
     if (!video) return;

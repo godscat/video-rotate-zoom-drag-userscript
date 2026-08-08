@@ -24,7 +24,13 @@ const CONFIG = {
     default: 0,
   },
 
-  // 键盘移动步长（像素）
+  // AB 循环
+  abloop: {
+    // 显示毫秒数
+    showMilliseconds: false,
+  },
+
+  // 视频平移步长（像素）
   move: {
     stepSize: 20,
   },
@@ -57,6 +63,19 @@ const CONFIG = {
   // UI 行为
   ui: {
     hideDelay: 3000, // 鼠标离开后隐藏延时（毫秒）
+    bottomBase: 14,  // B 方案：工具条距 video 底边的基础偏移（避开原生控制栏）
+  },
+
+  // 倍速播放可选档位（降序）
+  playbackSpeeds: [2.0, 1.5, 1.25, 1.0, 0.75, 0.5],
+
+  // IndexedDB 存储结构（DB 名 / 版本 / store 名）
+  db: {
+    name: 'vrz-config',
+    version: 1,
+    storeSite: 'siteConfig',
+    storeMeta: 'meta',
+    metaKey: 'about',
   },
 
   // 键盘快捷键：使用 e.code（物理按键，不受输入法/Shift 影响）
@@ -86,21 +105,10 @@ const CONFIG = {
     toggleExpand: { mod: 'none',  code: 'Period' },          // .
   },
 
-  // 日志开关（默认禁用；调试时改为 true）
+  // 日志开关（开发阶段默认开启；正式发布前可改 false）
   log: {
     enabled: true,
   },
 };
 
-/**
- * 格式化显示文本："{value}%" / "{value}°"
- * @param {string} format - 格式字符串
- * @param {*} value - 值
- * @returns {string}
- */
-function formatText(format, value) {
-  return format.replace('{value}', value);
-}
-
 export default CONFIG;
-export { formatText };

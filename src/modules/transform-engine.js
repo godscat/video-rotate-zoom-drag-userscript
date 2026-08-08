@@ -11,7 +11,7 @@
  * 回调：onChange(state) - 每次 apply 后触发，供 UI 更新显示
  */
 
-import CONFIG, { formatText } from './config.js';
+import CONFIG from './config.js';
 import { getLogger } from './logger.js';
 
 class TransformEngine {
@@ -40,6 +40,7 @@ class TransformEngine {
 
   /**
    * 绑定到目标 <video>
+   * @param {HTMLVideoElement} video
    */
   attach(video) {
     if (!video) return;

@@ -99,18 +99,20 @@ src/
 └── modules/
     ├── ab-loop.js                  # A-B 循环（起点/终点/自动回跳）
     ├── app.js                      # 协调器：两阶段懒启动 + 视频发现/SPA/位置同步/显隐/清理
-    ├── config.js                   # 全局默认配置（参数/修饰键/e.code 快捷键/激活阈值/黑名单/日志开关）
+    ├── config.js                   # 全局配置：参数/修饰键/快捷键/阈值/黑名单/日志/ui.bottomBase/playbackSpeeds/db.*
+    ├── constants.js                # 技术映射表：修饰键→键名、win/mac 显示（CONSTANTS.VALID_MODS*）
     ├── transform-engine.js         # 变换状态源：apply()/calculateScale()/zoom/rotate/move
-    ├── ui-overlay.js               # 悬浮工具条 + 展开面板 + 方向连发 + hover 显隐 + B方案定位
-    ├── drag-handler.js             # 拖拽（document 级，读 site-config）
-    ├── wheel-handler.js            # 滚轮缩放（document 级，读 site-config）
+    ├── ui-overlay.js               # 悬浮工具条（相对 video 底边定位，formatTime/formatText）
+    ├── drag-handler.js             # 拖拽（document 级，util.checkModifiers）
+    ├── wheel-handler.js            # 滚轮缩放（document 级，util.checkModifiers）
     ├── keyboard-shortcuts.js       # 键盘快捷键（e.code 匹配，无视频不拦截）
-    ├── site-config.js              # 运行时站点配置 + IndexedDB 加载/合并 + checkModifiers
-    ├── storage.js                  # IndexedDB 封装（siteConfig + meta）
-    ├── config-panel.js             # 修饰键配置模态（min-1 校验，setHTML 注入）
-    ├── help-panel.js               # 快捷键只读浮层（setHTML 注入）
-    ├── styles.js                   # 玻璃浮层 CSS + setHTML()/Trusted Types 策略
-    └── logger.js                   # 日志单例（[vrz]@[host] 格式，createChild/use）
+    ├── site-config.js              # 运行时站点配置 + IndexedDB 加载/合并
+    ├── storage.js                  # IndexedDB 封装（读 CONFIG.db，siteConfig + meta）
+    ├── config-panel.js             # 修饰键配置模态（min-1 校验，util.setHTML 注入）
+    ├── help-panel.js               # 快捷键只读浮层（util.setHTML 注入）
+    ├── styles.js                   # 玻璃浮层 CSS（静态字符串，<style> 注入）
+    ├── logger.js                   # 日志单例（[vrz]@[host] 格式，createChild/use）
+    └── util.js                     # 工具函数：checkModifiers/formatTime/formatText/setHTML（+TT 策略）
 
 dist/
 └── video-rotate-zoom-drag.user.js  # 构建产物

@@ -8,19 +8,18 @@
  *
  * 随页面源（origin）天然隔离，再按 location.hostname 做 key 实现"每站点单独保存"。
  * 当 IndexedDB 不可用（隐私模式等）时优雅降级：上层回退到默认值，仅丢失持久化。
+ *
+ * DB 名 / 版本 / store 名等业务参数统一在 config.js 的 CONFIG.db。
  */
 
+import CONFIG from './config.js';
 import { getLogger } from './logger.js';
 
-const DB_NAME = 'vrz-config';
-const DB_VERSION = 1;
-const STORE_SITE = 'siteConfig';
-const STORE_META = 'meta';
-const META_KEY = 'about';
+const DB = CONFIG.db;
 
 /** meta 说明记录（在建库/升级时写入，用于在 devtools 中识别本库用途） */
 const META_RECORD = {
-  key: META_KEY,
+  key: DB.metaKey,
   purpose: '视频旋转/缩放/拖拽 用户脚本的每站点配置存储',
   detail:
     'siteConfig: 按 location.hostname 保存鼠标拖拽与滚轮缩放的修饰键配置；meta: 本数据库说明信息。',
@@ -41,7 +40,7 @@ function openDB() {
       reject(new Error('当前环境不支持 IndexedDB'));
       return;
     }
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    const req = indexedDB.open(DB.name, DB.version);
 
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -50,16 +49,16 @@ function openDB() {
       // 必须复用 req.transaction 或 createObjectStore 返回的 store 句柄。
       const versionTx = req.transaction;
 
-      if (!db.objectStoreNames.contains(STORE_SITE)) {
-        db.createObjectStore(STORE_SITE, { keyPath: 'host' });
+      if (!db.objectStoreNames.contains(DB.storeSite)) {
+        db.createObjectStore(DB.storeSite, { keyPath: 'host' });
       }
 
-      if (!db.objectStoreNames.contains(STORE_META)) {
+      if (!db.objectStoreNames.contains(DB.storeMeta)) {
         // 新建 store 时用其返回句柄写入说明（属于版本变更事务）
-        db.createObjectStore(STORE_META, { keyPath: 'key' }).put(META_RECORD);
+        db.createObjectStore(DB.storeMeta, { keyPath: 'key' }).put(META_RECORD);
       } else {
         // 升级场景：store 已存在，经版本变更事务刷新说明
-        versionTx.objectStore(STORE_META).put(META_RECORD);
+        versionTx.objectStore(DB.storeMeta).put(META_RECORD);
       }
     };
 
@@ -79,8 +78,8 @@ async function loadSiteConfig(host) {
   try {
     db = await openDB();
     return await new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_SITE, 'readonly');
-      const req = tx.objectStore(STORE_SITE).get(host);
+      const tx = db.transaction(DB.storeSite, 'readonly');
+      const req = tx.objectStore(DB.storeSite).get(host);
       req.onsuccess = () => resolve(req.result ? { ...req.result } : null);
       req.onerror = () => reject(req.error);
     });
@@ -100,8 +99,8 @@ async function saveSiteConfig(host, data) {
   try {
     db = await openDB();
     return await new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_SITE, 'readwrite');
-      tx.objectStore(STORE_SITE).put({ host, ...data });
+      const tx = db.transaction(DB.storeSite, 'readwrite');
+      tx.objectStore(DB.storeSite).put({ host, ...data });
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => reject(tx.error);
     });
@@ -117,8 +116,8 @@ async function touchMeta() {
   try {
     let db = await openDB();
     await new Promise((resolve, reject) => {
-      const tx = db.transaction(STORE_META, 'readwrite');
-      tx.objectStore(STORE_META).put(META_RECORD);
+      const tx = db.transaction(DB.storeMeta, 'readwrite');
+      tx.objectStore(DB.storeMeta).put(META_RECORD);
       tx.oncomplete = () => resolve(true);
       tx.onerror = () => reject(tx.error);
     });
@@ -128,4 +127,4 @@ async function touchMeta() {
   }
 }
 
-export { loadSiteConfig, saveSiteConfig, touchMeta, DB_NAME, STORE_SITE, STORE_META };
+export { loadSiteConfig, saveSiteConfig, touchMeta };

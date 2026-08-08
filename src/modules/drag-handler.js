@@ -7,7 +7,7 @@
  */
 
 import { getLogger } from './logger.js';
-import { checkModifiers } from './site-config.js';
+import { checkModifiers } from './util.js';
 
 class DragHandler {
   constructor(app) {

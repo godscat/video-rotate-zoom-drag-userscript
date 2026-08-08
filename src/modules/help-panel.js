@@ -5,6 +5,7 @@
  */
 
 import CONFIG from './config.js';
+import { setHTML } from "./util";
 
 const ITEMS = [
   { code: 'Equal', label: 'Shift + (+)', desc: '放大视频' },
