@@ -137,6 +137,53 @@ const STYLE = `
     color: #0cf;
   }
 
+  /* 缩放选择器 */
+  .vrz-zoom-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+  .vrz-zoom-btn {
+    min-width: 44px;
+    padding: 0 6px;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+  .vrz-zoom-menu {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-bottom: 6px;
+    padding: 6px;
+    border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0.65);
+    -webkit-backdrop-filter: saturate(180%) blur(17.5px);
+    backdrop-filter: saturate(180%) blur(17.5px);
+    z-index: 1;
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    color: #fff;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  }
+  .vrz-zoom-menu.hidden { display: none; }
+  .vrz-zoom-item {
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    text-align: center;
+    transition: background 0.12s;
+  }
+  .vrz-zoom-item:hover { background: rgba(255, 255, 255, 0.18); }
+  .vrz-zoom-item.active {
+    background: rgba(255, 255, 255, 0.12);
+    color: #0cf;
+  }
+
   /* 次级面板 */
   .vrz-secondary {
     display: inline-flex;
@@ -145,7 +192,7 @@ const STYLE = `
     height: 32px;
     padding: 0 10px;
     border-radius: 20px;
-    background-color: rgba(0, 0, 0, 0.55);
+    background-color: rgba(0, 0, 0, 0.3);
     -webkit-backdrop-filter: saturate(180%) blur(17.5px);
     backdrop-filter: saturate(180%) blur(17.5px);
     pointer-events: auto;

@@ -11,7 +11,7 @@
  */
 
 import CONFIG from './config.js';
-import { formatTime, formatText } from './util.js';
+import { formatTime } from './util.js';
 
 class UIOverlay {
   /**
@@ -108,9 +108,8 @@ class UIOverlay {
     // 缩小 / 显示 / 放大
     this.bar.appendChild(this._btn('−', '缩小 (Shift + -)', () => this.engine.zoomOut()));
 
-    this.display = document.createElement('div');
-    this.display.className = 'vrz-display';
-    this.bar.appendChild(this.display);
+    // 缩放档位下拉（点击展开 levels）
+    this.bar.appendChild(this._buildZoom());
 
     this.bar.appendChild(this._btn('+', '放大 (Shift + +)', () => this.engine.zoomIn()));
 
@@ -202,8 +201,63 @@ class UIOverlay {
   }
 
   updateDisplay(state) {
-    if (!this.display) return;
-    this.display.textContent = formatText('{value}%', state.zoomLevel);
+    if (this.zoomBtn) this.zoomBtn.textContent = `${state.zoomLevel}%`;
+    if (this.zoomMenu) {
+      this.zoomMenu.querySelectorAll('.vrz-zoom-item').forEach((item) => {
+        item.classList.toggle('active', Number(item.dataset.level) === state.zoomLevel);
+      });
+    }
+  }
+
+  _buildZoom() {
+    this.zoomWrap = document.createElement('div');
+    this.zoomWrap.className = 'vrz-zoom-wrap';
+
+    this.zoomBtn = document.createElement('button');
+    this.zoomBtn.className = 'vrz-btn vrz-zoom-btn';
+    this.zoomBtn.textContent = '100%';
+    this.zoomBtn.title = '缩放档位（点击选择）';
+    this.zoomBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this._toggleZoomMenu();
+    });
+    this.zoomWrap.appendChild(this.zoomBtn);
+
+    this.zoomMenu = document.createElement('div');
+    this.zoomMenu.className = 'vrz-zoom-menu hidden';
+    CONFIG.zoom.levels.forEach((lv) => {
+      const item = document.createElement('div');
+      item.className = 'vrz-zoom-item';
+      item.textContent = `${lv}%`;
+      item.dataset.level = lv;
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.engine.setZoom(lv);
+        this._closeZoomMenu();
+      });
+      this.zoomMenu.appendChild(item);
+    });
+    this.zoomWrap.appendChild(this.zoomMenu);
+
+    this._zoomDocClick = (e) => {
+      if (!this.zoomWrap.contains(e.target)) this._closeZoomMenu();
+    };
+    document.addEventListener('mousedown', this._zoomDocClick);
+
+    return this.zoomWrap;
+  }
+
+  _toggleZoomMenu() {
+    if (!this.zoomMenu) return;
+    if (this.zoomMenu.classList.contains('hidden')) {
+      this.zoomMenu.classList.remove('hidden');
+    } else {
+      this._closeZoomMenu();
+    }
+  }
+
+  _closeZoomMenu() {
+    if (this.zoomMenu) this.zoomMenu.classList.add('hidden');
   }
 
   attach(stage, video) {
