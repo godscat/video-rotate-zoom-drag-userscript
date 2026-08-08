@@ -65,6 +65,7 @@ const CONFIG = {
   ui: {
     hideDelay: 3000, // 鼠标离开后隐藏延时（毫秒）
     bottomBase: 14,  // B 方案：工具条距 video 底边的基础偏移（避开原生控制栏）
+    persistOnPause: false, // 暂停时工具条常驻显示（可在配置面板切换，全局生效）
   },
 
   // 倍速播放可选档位（降序）

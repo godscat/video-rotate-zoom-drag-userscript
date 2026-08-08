@@ -79,7 +79,7 @@ A-B 循环：设置起点 A / 终点 B；`timeupdate` 监听回跳；`clearA/B()
 全局默认配置（业务参数）：缩放/旋转/移动/AB循环参数、激活尺寸阈值、站点黑名单、拖拽/滚轮默认修饰键、`e.code` 快捷键、日志开关、UI 偏移（`ui.bottomBase`）、倍速档位（`playbackSpeeds`）、IndexedDB 结构（`db.*`）。`export default CONFIG`。
 
 #### `config-panel.js`
-修饰键配置模态：拖拽区 + 缩放区，各为「启用/禁用 + alt/ctrl/shift 多选」；min-1 校验；DOM 经 `util.setHTML()` 注入；写回 site-config。
+配置模态：修饰键区（拖拽/缩放，按站点存 IndexedDB）+ 显示选项区（暂停时常驻等，经 GM 全局）；min-1 校验；DOM 经 `util.setHTML()` 注入；`onPersistOnChange` 回调即时应用。
 
 #### `constants.js`
 **技术映射表**（带 `@typedef`）：`CONSTANTS.VALID_MODS` / `VALID_MODS_KEYNAMES`（修饰键→KeyboardEvent 键名）/ `VALID_MODS_KEYDISPLAY`（Windows/Mac 显示名）。仅放类型化的基础设施常量，业务数值参数归 `config.js`。
@@ -112,7 +112,7 @@ IndexedDB 封装。DB 名/版本/store 名读自 `CONFIG.db`；两个 store：`s
 悬浮控制条：主栏（缩放/倍速下拉/旋转/还原/展开）+ 次级面板（方向组↑↓←→长按连发 / A-B 按钮 / 配置 / 帮助 / 缩回）；`reposition(stageRect, videoRect)` **相对 video 底边定位**（`CONFIG.ui.bottomBase`）避开原生控制栏；hover 显隐；`ratechange` 同步倍速显示；倍速档位读 `CONFIG.playbackSpeeds`；时间显示用 `util.formatTime`，缩放% 用 `util.formatText`。
 
 #### `util.js`
-**工具函数集**（函数声明，跨模块提升可用）：`checkModifiers`（修饰键匹配，读 `CONSTANTS.VALID_MODS_KEYNAMES`）、`formatTime`（时间格式化，读 `CONFIG.abloop.showMilliseconds`）、`formatText`（`{value}` 占位替换）、`fillPrefixWith`、`setHTML`（安全 innerHTML，兼容 Trusted Types，单例 `vrz-html` 策略）。
+**工具函数集**（函数声明，跨模块提升可用）：`checkModifiers`（修饰键匹配，读 `CONSTANTS.VALID_MODS_KEYNAMES`）、`formatTime`（时间格式化，读 `CONFIG.abloop.showMilliseconds`）、`formatText`（`{value}` 占位替换）、`fillPrefixWith`、`setHTML`（安全 innerHTML，兼容 Trusted Types，单例 `vrz-html` 策略）、`getPref/setPref`（全局偏好，封装 GM_getValue/GM_setValue）。
 
 #### `wheel-handler.js`
 document 级 wheel（capture）；读 `site-config` 修饰键（经 `util.checkModifiers`）；仅视频区域内触发。
@@ -159,6 +159,7 @@ document 级 wheel（capture）；读 `site-config` 修饰键（经 `util.checkM
 ### @grant
 
 - `GM_addStyle`（保留，实际用 `<style>` 标签注入亦可）
+- `GM_setValue` / `GM_getValue`（全局偏好存储，跨站点；如暂停时常驻开关）
 
 ### @run-at
 
@@ -188,6 +189,7 @@ DB: vrz-config (version 1)          ← 名/版本/store 名定义在 CONFIG.db
 - **站点黑名单**：`s1.hdslb.com`、`message.bilibili.com`、`challenges.cloudflare.com`（hostname 精确匹配，命中不启动）
 - **拖拽/滚轮默认修饰键**：`['shift']`（可组合 alt/ctrl/shift，min-1）
 - **UI 工具条偏移**：`ui.bottomBase=14`（相对 video 底边）
+- **暂停时常驻**：`ui.persistOnPause=false`（默认暂停后自动隐藏；配置面板可切换，经 GM 全局生效）
 - **倍速档位**：`playbackSpeeds=[2, 1.5, 1.25, 1, 0.75, 0.5]`
 - **IndexedDB**：`db={name:'vrz-config', version:1, storeSite:'siteConfig', storeMeta:'meta', metaKey:'about'}`
 - **日志**：`log.enabled`（开发阶段默认开启；正式发布前可改 `false`）

@@ -89,4 +89,28 @@ function setHTML(el, html) {
   el.innerHTML = p ? p.createHTML(html) : html;
 }
 
-export { checkModifiers, formatText, formatTime, setHTML };
+/**
+ * 读取全局偏好（跨站点，经 GM_getValue；无 GM 环境返回默认值）
+ * @param {string} key
+ * @param {*} defaultValue
+ * @returns {*}
+ */
+function getPref(key, defaultValue) {
+  try {
+    if (typeof GM_getValue === 'function') return GM_getValue(key, defaultValue);
+  } catch (e) {}
+  return defaultValue;
+}
+
+/**
+ * 写入全局偏好（跨站点，经 GM_setValue）
+ * @param {string} key
+ * @param {*} value
+ */
+function setPref(key, value) {
+  try {
+    if (typeof GM_setValue === 'function') GM_setValue(key, value);
+  } catch (e) {}
+}
+
+export { checkModifiers, formatText, formatTime, setHTML, getPref, setPref };

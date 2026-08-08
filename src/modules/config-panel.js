@@ -1,17 +1,20 @@
 /**
- * 配置面板模块 - 修饰键配置模态
+ * 配置面板模块 - 修饰键（按站点）+ 显示选项（全局）配置模态
  *
- * 两个分区（拖拽 / 滚轮缩放），每区：
+ * 修饰键分区（拖拽 / 滚轮缩放），每区：
  *  - 启用/禁用 切换按钮（默认启用）
  *  - alt / ctrl / shift 多选（启用时默认 shift）
  *
+ * 显示选项（全局，经 GM_setValue 跨站点生效）：
+ *  - 暂停时常驻：视频暂停时是否保持工具条常驻显示
+ *
  * 规则：
- *  - 启用时强制至少 1 个修饰键（min-1）：取消最后一个会被阻止并提示
- *  - 禁用时三个多选清空并灰化（disabled）
- *  - 任一变更立即写回 SiteConfig（持久化到 IndexedDB，按站点保存）
+ *  - 修饰键：启用时强制至少 1 个修饰键（min-1）；按站点存 IndexedDB
+ *  - 显示选项：全局（个人习惯，非站点差异）
  */
 
-import { setHTML } from "./util";
+import CONFIG from './config.js';
+import { setHTML, setPref } from "./util";
 
 const SECTION_LABEL = {
   drag: '配置鼠标拖拽「前置键」',
@@ -22,8 +25,9 @@ class ConfigPanel {
   /**
    * @param {SiteConfig} siteConfig
    */
-  constructor(siteConfig) {
+  constructor(siteConfig, callbacks = {}) {
     this.siteConfig = siteConfig;
+    this.callbacks = callbacks;
     this.el = null;
     this._hintTimer = null;
   }
@@ -34,9 +38,10 @@ class ConfigPanel {
     overlay.className = 'vrz-modal-overlay hidden';
     setHTML(overlay, `
       <div class="vrz-modal" role="dialog" aria-modal="true">
-        <div class="vrz-modal-title">修饰键配置</div>
-        <div class="vrz-modal-sub">按站点保存（当前站点：<span class="vrz-host"></span>）</div>
+        <div class="vrz-modal-title">配置</div>
+        <div class="vrz-modal-sub">修饰键按站点保存（当前站点：<span class="vrz-host"></span>）｜显示选项全局生效</div>
         <div class="vrz-modal-sections"></div>
+        <div class="vrz-modal-ui-section"></div>
         <div class="vrz-modal-hint"></div>
         <div class="vrz-modal-actions">
           <button class="vrz-modal-close">关闭</button>
@@ -51,6 +56,8 @@ class ConfigPanel {
     const sections = overlay.querySelector('.vrz-modal-sections');
     sections.appendChild(this._buildSection('drag'));
     sections.appendChild(this._buildSection('zoom'));
+
+    overlay.querySelector('.vrz-modal-ui-section').appendChild(this._buildUiOptions());
 
     overlay.querySelector('.vrz-host').textContent = this.siteConfig.host;
     document.body.appendChild(overlay);
@@ -109,10 +116,32 @@ class ConfigPanel {
     return sec;
   }
 
+  /** 显示选项（全局）：暂停时常驻开关 */
+  _buildUiOptions() {
+    const sec = document.createElement('div');
+    sec.className = 'vrz-modal-section vrz-ui-options';
+    setHTML(sec, `
+      <div class="vrz-modal-section-title">显示选项（全局）</div>
+      <div class="vrz-mod-row">
+        <button class="vrz-toggle" data-act="persist-on-pause">暂停时常驻</button>
+      </div>`);
+
+    sec.querySelector('[data-act="persist-on-pause"]').addEventListener('click', (e) => {
+      const next = !CONFIG.ui.persistOnPause;
+      CONFIG.ui.persistOnPause = next;
+      setPref('vrz-persist-on-pause', next);
+      this._refresh();
+      if (typeof this.callbacks.onPersistOnChange === 'function') this.callbacks.onPersistOnChange();
+      e.stopPropagation();
+    });
+    return sec;
+  }
+
   _refresh() {
     if (!this.el) return;
     this.el.querySelectorAll('.vrz-modal-section').forEach((sec) => {
       const key = sec.dataset.key;
+      if (!key) return; // 跳过非修饰键区（显示选项等）
       const cfg = key === 'drag' ? this.siteConfig.getDragConfig() : this.siteConfig.getZoomConfig();
 
       const toggleBtn = sec.querySelector('[data-act="toggle"]');
@@ -126,6 +155,13 @@ class ConfigPanel {
         btn.disabled = !cfg.enabled;
       });
     });
+
+    // 显示选项：暂停时常驻（全局）
+    const persistBtn = this.el.querySelector('[data-act="persist-on-pause"]');
+    if (persistBtn) {
+      persistBtn.classList.toggle('on', CONFIG.ui.persistOnPause);
+      persistBtn.title = CONFIG.ui.persistOnPause ? '当前：暂停时常驻，点击关闭' : '当前：暂停时自动隐藏，点击开启';
+    }
   }
 
   _hint(text) {

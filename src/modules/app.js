@@ -11,6 +11,7 @@
  */
 
 import CONFIG from './config.js';
+import { getPref } from './util.js';
 import { Styles } from './styles.js';
 import { TransformEngine } from './transform-engine.js';
 import { UIOverlay } from './ui-overlay.js';
@@ -48,6 +49,9 @@ class App {
     this.configPanel = null;
     this.helpPanel = null;
 
+    // 读取全局偏好覆盖默认配置（暂停时常驻等，跨站点生效）
+    CONFIG.ui.persistOnPause = !!getPref('vrz-persist-on-pause', CONFIG.ui.persistOnPause);
+
     // 阶段一即可安全创建（构造期无全局事件副作用）
     this.siteConfig = new SiteConfig();
     this.engine = new TransformEngine();
@@ -71,7 +75,15 @@ class App {
     Styles.inject();
 
     // 面板（DOM 在 open() 时按需创建，构造期无副作用）
-    this.configPanel = new ConfigPanel(this.siteConfig);
+    this.configPanel = new ConfigPanel(this.siteConfig, {
+      onPersistOnChange: () => {
+        // 配置改变后即时应用到当前暂停状态
+        if (this.isPaused) {
+          if (CONFIG.ui.persistOnPause) this.showPersistent();
+          else this.showAndTimer();
+        }
+      },
+    });
     this.helpPanel = new HelpPanel();
 
     // 悬浮 UI（此刻才会向 body 插入浮层并绑定 document mousedown）
@@ -91,7 +103,8 @@ class App {
       (e) => {
         if (e.target instanceof HTMLVideoElement && e.target === this.activeVideo) {
           this.isPaused = true;
-          this.showPersistent();
+          if (CONFIG.ui.persistOnPause) this.showPersistent();
+          else this.showAndTimer();
         }
       },
       true
@@ -279,7 +292,7 @@ class App {
       this.detach();
       return;
     }
-    if (!this.activeVideo || !this.videoRect || this.isPaused) return;
+    if (!this.activeVideo || !this.videoRect || (this.isPaused && CONFIG.ui.persistOnPause)) return;
 
     const rect = this.videoRect;
     const overVideo =
