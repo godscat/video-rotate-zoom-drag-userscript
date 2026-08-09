@@ -74,6 +74,8 @@ const STYLE = `
   .vrz-btn.vrz-on { background: #2d6; }
   .vrz-btn.vrz-on:hover { background: #3e7; }
 
+  .vrz-ab-mark { white-space: nowrap; }
+
   .vrz-display {
     min-width: 44px;
     padding: 0 4px;
