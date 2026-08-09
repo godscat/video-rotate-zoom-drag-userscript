@@ -10,8 +10,10 @@
  */
 
 const STYLE = `
-  .vrz-container {
+  :root {
     --z-index-base: 2000000000;
+  }
+  .vrz-container {
     position: fixed;
     z-index: var(--z-index-base);
     pointer-events: none;
@@ -20,9 +22,8 @@ const STYLE = `
 
   .vrz-controls {
     position: absolute;
-    bottom: 14px;
-    left: 50%;
-    transform: translateX(-50%);
+    top: 4px;
+    left: 4px;
     display: flex;
     align-items: center;
     pointer-events: none;
@@ -49,9 +50,7 @@ const STYLE = `
     user-select: none;
     -webkit-user-select: none;
   }
-  .vrz-main-bar {
-
-  }
+  .vrz-main-bar { }
 
   .vrz-btn {
     display: inline-flex;
@@ -109,10 +108,10 @@ const STYLE = `
   }
   .vrz-speed-menu {
     position: absolute;
-    bottom: 100%;
+    top: 100%;
     left: 50%;
     transform: translateX(-50%);
-    margin-bottom: 6px;
+    margin-top: 6px;
     min-width: 60px;
     padding: 4px 0;
     border-radius: 10px;
@@ -152,10 +151,8 @@ const STYLE = `
   }
   .vrz-zoom-menu {
     position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    margin-bottom: 6px;
+    top: 100%;
+    margin-top: 6px;
     padding: 6px;
     border-radius: 10px;
     background-color: rgba(0, 0, 0, 0.65);
@@ -186,11 +183,36 @@ const STYLE = `
     color: #0cf;
   }
 
+  /* 方向移动弹出菜单（十字布局） */
+  .vrz-move-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+  .vrz-move-menu {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 6px;
+    padding: 6px;
+    border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0.65);
+    -webkit-backdrop-filter: saturate(180%) blur(17.5px);
+    backdrop-filter: saturate(180%) blur(17.5px);
+    z-index: calc(var(--z-index-base) + 2);
+    display: grid;
+    grid-template-columns: repeat(3, auto);
+    grid-template-rows: repeat(3, auto);
+    gap: 2px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  }
+  .vrz-move-menu.hidden { display: none; }
+
   /* 次级面板（绝对定位在 bar 右侧，保持 bar 居中不动） */
   .vrz-secondary-bar {
     position: absolute;
     left: 100%;
-    bottom: 0;
+    top: 0;
     z-index: calc(var(--z-index-base) + 1);
   }
   .vrz-secondary-bar.hidden { display: none; }
@@ -253,6 +275,10 @@ const STYLE = `
     align-items: center;
     gap: 6px;
     flex-wrap: wrap;
+  }
+
+  .vrz-kb-groups-row {
+    margin-top: 8px;
   }
 
   .vrz-toggle, .vrz-mod {
@@ -343,6 +369,21 @@ const STYLE = `
     font-size: 11px;
   }
   .vrz-help-desc { opacity: 0.75; }
+
+  /* 四向箭头图标 */
+  .boxicons--move {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    --svg: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='black' d='M18.21 7.79L16.8 9.2l1.79 1.79H13V5.4l1.79 1.79l1.41-1.41l-3.5-3.5a.996.996 0 0 0-1.41 0l-3.5 3.5L9.2 7.19l1.79-1.79v5.59H5.4L7.19 9.2L5.78 7.79l-3.5 3.5a.996.996 0 0 0 0 1.41l3.5 3.5l1.41-1.41L5.4 13h5.59v5.59L9.2 16.8l-1.41 1.41l3.5 3.5c.2.2.45.29.71.29s.51-.1.71-.29l3.5-3.5l-1.41-1.41l-1.79 1.79V13h5.59l-1.79 1.79l1.41 1.41l3.5-3.5a.996.996 0 0 0 0-1.41l-3.5-3.5Z'/%3E%3C/svg%3E");
+    background-color: currentColor;
+    -webkit-mask-image: var(--svg);
+    mask-image: var(--svg);
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+  }
 `;
 
 class Styles {

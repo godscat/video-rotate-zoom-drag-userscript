@@ -14,7 +14,7 @@
  */
 
 import CONFIG from './config.js';
-import { setHTML, setPref } from "./util";
+import { setHTML, setPref, getPref } from "./util";
 
 const SECTION_LABEL = {
   drag: '配置鼠标拖拽「前置键」',
@@ -41,6 +41,7 @@ class ConfigPanel {
         <div class="vrz-modal-title">配置</div>
         <div class="vrz-modal-sub">修饰键按站点保存（当前站点：<span class="vrz-host"></span>）｜显示选项全局生效</div>
         <div class="vrz-modal-sections"></div>
+        <div class="vrz-modal-kb-section"></div>
         <div class="vrz-modal-ui-section"></div>
         <div class="vrz-modal-hint"></div>
         <div class="vrz-modal-actions">
@@ -57,6 +58,7 @@ class ConfigPanel {
     sections.appendChild(this._buildSection('drag'));
     sections.appendChild(this._buildSection('zoom'));
 
+    overlay.querySelector('.vrz-modal-kb-section').appendChild(this._buildKbSection());
     overlay.querySelector('.vrz-modal-ui-section').appendChild(this._buildUiOptions());
 
     overlay.querySelector('.vrz-host').textContent = this.siteConfig.host;
@@ -137,6 +139,65 @@ class ConfigPanel {
     return sec;
   }
 
+  /** 键盘快捷键开关（全局）*/
+  _buildKbSection() {
+    const LABELS = {
+      zoom: '缩放', rotate: '旋转', fullscreen: '全屏', reset: '还原',
+      move: '移动', abLoop: 'A-B循环', panels: '面板',
+    };
+
+    const sec = document.createElement('div');
+    sec.className = 'vrz-modal-section vrz-kb-options';
+
+    setHTML(sec, `
+      <div class="vrz-modal-section-title">键盘快捷键（全局）</div>
+      <div class="vrz-mod-row vrz-kb-master-row">
+        <button class="vrz-toggle" data-act="kb-master">启用额外快捷键</button>
+      </div>
+      <div class="vrz-mod-row vrz-kb-groups-row"></div>`);
+
+    // 总开关
+    sec.querySelector('[data-act="kb-master"]').addEventListener('click', (e) => {
+      const cur = !!getPref('vrz-kb-enabled', CONFIG.shortcuts.enabled);
+      const next = !cur;
+      setPref('vrz-kb-enabled', next);
+      if (next) {
+        const groups = getPref('vrz-kb-groups', {});
+        let changed = false;
+        CONFIG.shortcutGroups && Object.keys(CONFIG.shortcutGroups).forEach((g) => {
+          if (groups[g] == null) { groups[g] = true; changed = true; }
+        });
+        if (changed) setPref('vrz-kb-groups', groups);
+      }
+      this._refresh();
+      e.stopPropagation();
+    });
+
+    // 分组开关
+    const groupsRow = sec.querySelector('.vrz-kb-groups-row');
+    CONFIG.shortcutGroups && Object.keys(CONFIG.shortcutGroups).forEach((group) => {
+      const btn = document.createElement('button');
+      btn.className = 'vrz-toggle';
+      btn.dataset.act = 'kb-group';
+      btn.dataset.group = group;
+      btn.textContent = LABELS[group] || group;
+      btn.addEventListener('click', (e) => {
+        if (!getPref('vrz-kb-enabled', false)) {
+          this._hint('请先启用键盘快捷键总开关');
+          return;
+        }
+        const groups = getPref('vrz-kb-groups', {});
+        groups[group] = !groups[group];
+        setPref('vrz-kb-groups', groups);
+        this._refresh();
+        e.stopPropagation();
+      });
+      groupsRow.appendChild(btn);
+    });
+
+    return sec;
+  }
+
   _refresh() {
     if (!this.el) return;
     this.el.querySelectorAll('.vrz-modal-section').forEach((sec) => {
@@ -161,6 +222,23 @@ class ConfigPanel {
     if (persistBtn) {
       persistBtn.classList.toggle('on', CONFIG.ui.persistOnPause);
       persistBtn.title = CONFIG.ui.persistOnPause ? '当前：暂停时常驻，点击关闭' : '当前：暂停时自动隐藏，点击开启';
+    }
+
+    // 键盘快捷键（全局）
+    const kbMaster = this.el.querySelector('[data-act="kb-master"]');
+    if (kbMaster) {
+      const kbOn = !!getPref('vrz-kb-enabled', CONFIG.shortcuts.enabled);
+      kbMaster.textContent = kbOn ? '禁用' : '启用额外快捷键';
+      kbMaster.classList.toggle('on', kbOn);
+      kbMaster.title = kbOn ? '当前：已启用，点击禁用全部快捷键' : '当前：全部禁用，点击启用快捷键';
+
+      const groups = getPref('vrz-kb-groups', {});
+      this.el.querySelectorAll('[data-act="kb-group"]').forEach((btn) => {
+        const g = btn.dataset.group;
+        const gOn = !!groups[g];
+        btn.classList.toggle('on', kbOn && gOn);
+        btn.disabled = !kbOn;
+      });
     }
   }
 

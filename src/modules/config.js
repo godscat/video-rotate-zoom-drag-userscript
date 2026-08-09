@@ -73,7 +73,9 @@ const CONFIG = {
 
   // 键盘快捷键：使用 e.code（物理按键，不受输入法/Shift 影响）
   // mod: 'ctrl' | 'shift' | 'alt' | 'none'
+  // enabled: 全局主开关（默认禁用，可在配置面板启用）
   shortcuts: {
+    enabled: false,
     zoomIn:      { mod: 'shift', code: 'Equal' },     // Shift + +/= 键
     zoomOut:     { mod: 'shift', code: 'Minus' },     // Shift + -/_ 键
     rotateLeft:  { mod: 'shift', code: 'KeyL' },      // Shift + L
@@ -96,6 +98,17 @@ const CONFIG = {
     showHelp:     { mod: 'none',  code: 'KeyH' },            // h
     showConfig:   { mod: 'none',  code: 'Comma' },           // ,
     toggleExpand: { mod: 'none',  code: 'Period' },          // .
+  },
+
+  // 快捷键分组（用于配置面板独立开关；键名对应 shortcuts 中的 key）
+  shortcutGroups: {
+    zoom: ['zoomIn', 'zoomOut'],
+    rotate: ['rotateLeft', 'rotateRight'],
+    fullscreen: ['fullscreen'],
+    reset: ['reset'],
+    move: ['moveUp', 'moveDown', 'moveLeft', 'moveRight'],
+    abLoop: ['abClearA', 'abClearB', 'abSetA', 'abSetB', 'abToggle'],
+    panels: ['showHelp', 'showConfig', 'toggleExpand'],
   },
 
   // 日志开关（开发阶段默认开启；正式发布前可改 false）

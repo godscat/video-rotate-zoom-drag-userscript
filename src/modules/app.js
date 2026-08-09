@@ -135,10 +135,14 @@ class App {
       true
     );
 
-    // SPA：DOM 变化后重新扫描（防抖）
+    // SPA：DOM 变化后重新扫描 + 重新定位（防抖）
+    // DOM mutation 常引发布局位移（如 B 站导航栏出现），需同步修正浮层位置
     this.spaObserver = new MutationObserver(() => {
       clearTimeout(this._spaTimer);
-      this._spaTimer = setTimeout(() => this.scan(), 300);
+      this._spaTimer = setTimeout(() => {
+        this.scan();
+        if (this.activeVideo) this.updateRectAndPosition();
+      }, 300);
     });
     this.spaObserver.observe(document.body, { childList: true, subtree: true });
 
@@ -224,8 +228,8 @@ class App {
     this.engine.attach(video);
     this.ui.attach(this.stage, video);
 
-    // 激活后短时轮询，等待布局稳定
-    this.startPolling(500);
+    // 激活后短时轮询，等待布局稳定（B 站等站点布局延迟位移较慢）
+    this.startPolling(1500);
 
     // 持续监听 stage 尺寸变化（全屏/响应式）
     this.observerCleanup();
@@ -277,7 +281,7 @@ class App {
     // stage 塌陷时（如 YouTube 的 .html5-video-container 高度为 0）回退到 video rect
     const rect = stageRect.width > 0 && stageRect.height > 0 ? stageRect : videoRect;
     this.videoRect = rect; // 显隐判断沿用 stage 语义
-    this.ui.reposition(rect, videoRect);
+    this.ui.reposition(rect);
   }
 
   /**

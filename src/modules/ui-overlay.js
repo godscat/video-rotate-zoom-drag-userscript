@@ -53,8 +53,17 @@ class UIOverlay {
 
   _btn(label, title, onClick, extraClass = '') {
     const b = document.createElement('button');
+    // label = 'icon:boxicons--move' -> appendChild <span class="boxicons--move"></span>
+    // label = 'pure text' -> textContent  = 'pure text'
+    if (label.startsWith('icon:')) {
+      const icon = document.createElement('span');
+      icon.className = label.slice(5);
+      b.appendChild(icon);
+    } else {
+      b.textContent = label;
+    }
+
     b.className = `vrz-btn ${extraClass}`.trim();
-    b.textContent = label;
     b.title = title;
     b.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -133,16 +142,8 @@ class UIOverlay {
   }
 
   _buildSecondary() {
-    const step = CONFIG.move.stepSize;
-
-    // 方向组
-    const group = document.createElement('div');
-    group.className = 'vrz-group';
-    group.appendChild(this._repeatable('↑', '上移 (Shift + ↑)', () => this.engine.move(0, -step)));
-    group.appendChild(this._repeatable('↓', '下移 (Shift + ↓)', () => this.engine.move(0, step)));
-    group.appendChild(this._repeatable('←', '左移 (Shift + ←)', () => this.engine.move(-step, 0)));
-    group.appendChild(this._repeatable('→', '右移 (Shift + →)', () => this.engine.move(step, 0)));
-    this.secondaryBar.appendChild(group);
+    // 方向组：四向箭头图标，点击弹出方向菜单
+    this.secondaryBar.appendChild(this._buildMove());
 
     this.secondaryBar.appendChild(this._divider());
 
@@ -159,6 +160,43 @@ class UIOverlay {
     this.collapseBtn = this._btn('«', '收起面板', () => this.toggleExpand());
     tools.appendChild(this.collapseBtn);
     this.secondaryBar.appendChild(tools);
+  }
+
+  _buildMove() {
+    const step = CONFIG.move.stepSize;
+    this.moveWrap = document.createElement('div');
+    this.moveWrap.className = 'vrz-move-wrap';
+
+    const moveBtn = this._btn('icon:boxicons--move', '移动视频', (e) => {
+      e.stopPropagation();
+      this._toggleMoveMenu();
+    });
+    this.moveWrap.appendChild(moveBtn);
+
+    this.moveMenu = document.createElement('div');
+    this.moveMenu.className = 'vrz-move-menu hidden';
+
+    const up = this._repeatable('↑', '上移 (Shift + ↑)', () => this.engine.move(0, -step));
+    up.style.gridArea = '1 / 2';
+    const down = this._repeatable('↓', '下移 (Shift + ↓)', () => this.engine.move(0, step));
+    down.style.gridArea = '3 / 2';
+    const left = this._repeatable('←', '左移 (Shift + ←)', () => this.engine.move(-step, 0));
+    left.style.gridArea = '2 / 1';
+    const right = this._repeatable('→', '右移 (Shift + →)', () => this.engine.move(step, 0));
+    right.style.gridArea = '2 / 3';
+
+    this.moveMenu.appendChild(up);
+    this.moveMenu.appendChild(left);
+    this.moveMenu.appendChild(right);
+    this.moveMenu.appendChild(down);
+    this.moveWrap.appendChild(this.moveMenu);
+
+    this._moveDocClick = (e) => {
+      if (!this.moveWrap.contains(e.target)) this._closeMoveMenu();
+    };
+    document.addEventListener('mousedown', this._moveDocClick);
+
+    return this.moveWrap;
   }
 
   _buildAB() {
@@ -260,6 +298,19 @@ class UIOverlay {
     if (this.zoomMenu) this.zoomMenu.classList.add('hidden');
   }
 
+  _toggleMoveMenu() {
+    if (!this.moveMenu) return;
+    if (this.moveMenu.classList.contains('hidden')) {
+      this.moveMenu.classList.remove('hidden');
+    } else {
+      this._closeMoveMenu();
+    }
+  }
+
+  _closeMoveMenu() {
+    if (this.moveMenu) this.moveMenu.classList.add('hidden');
+  }
+
   attach(stage, video) {
     this.stage = stage;
     this._detachRate();
@@ -287,7 +338,7 @@ class UIOverlay {
     }
   }
 
-  reposition(stageRect, videoRect) {
+  reposition(stageRect) {
     if (!this.stage && !stageRect) return;
     const r = stageRect || this.stage.getBoundingClientRect();
     if (!r.width && !r.height) return;
@@ -295,14 +346,6 @@ class UIOverlay {
     this.container.style.left = r.left + 'px';
     this.container.style.width = r.width + 'px';
     this.container.style.height = r.height + 'px';
-
-    // B 方案：工具条底部对齐 video 底边，避开 stage 内的原生控制栏。
-    // gap = stage 底到 video 底；gap>0（控制栏在 video 下方）时工具条上移贴 video 底边。
-    if (videoRect && videoRect.height > 0) {
-      const gap = r.bottom - videoRect.bottom;
-      const bottom = Math.max(CONFIG.ui.bottomBase, gap + CONFIG.ui.bottomBase);
-      this.controls.style.bottom = bottom + 'px';
-    }
   }
 
   show() {

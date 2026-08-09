@@ -10,6 +10,7 @@
 
 import CONFIG from './config.js';
 import { getLogger } from './logger.js';
+import { getPref } from './util.js';
 
 class KeyboardShortcuts {
   /**
@@ -22,6 +23,15 @@ class KeyboardShortcuts {
 
     document.addEventListener('keydown', this._onKeyDown, true);
     this.logger.info('键盘快捷键已绑定');
+  }
+
+  _isGloballyEnabled() {
+    return !!getPref('vrz-kb-enabled', CONFIG.shortcuts.enabled);
+  }
+
+  _isGroupEnabled(group) {
+    const groups = getPref('vrz-kb-groups', {});
+    return groups[group] !== false;
   }
 
   _match(e, sc) {
@@ -59,84 +69,98 @@ class KeyboardShortcuts {
     if (this._inInput(e)) return;
     if (!this.app.activeVideo) return;
 
+    if (!this._isGloballyEnabled()) return;
+
     const sc = CONFIG.shortcuts;
     const engine = this.app.engine;
     if (!engine) return;
 
     // 缩放
-    if (this._match(e, sc.zoomIn)) {
-      e.preventDefault();
-      engine.zoomIn();
-    } else if (this._match(e, sc.zoomOut)) {
-      e.preventDefault();
-      engine.zoomOut();
+    if (this._isGroupEnabled('zoom')) {
+      if (this._match(e, sc.zoomIn)) {
+        e.preventDefault();
+        engine.zoomIn();
+      } else if (this._match(e, sc.zoomOut)) {
+        e.preventDefault();
+        engine.zoomOut();
+      }
     }
     // 旋转
-    else if (this._match(e, sc.rotateLeft)) {
-      e.preventDefault();
-      engine.rotateLeft();
-    } else if (this._match(e, sc.rotateRight)) {
-      e.preventDefault();
-      engine.rotateRight();
+    if (this._isGroupEnabled('rotate')) {
+      if (this._match(e, sc.rotateLeft)) {
+        e.preventDefault();
+        engine.rotateLeft();
+      } else if (this._match(e, sc.rotateRight)) {
+        e.preventDefault();
+        engine.rotateRight();
+      }
     }
     // 还原
-    else if (this._match(e, sc.reset)) {
-      e.preventDefault();
-      engine.reset();
+    if (this._isGroupEnabled('reset')) {
+      if (this._match(e, sc.reset)) {
+        e.preventDefault();
+        engine.reset();
+      }
     }
     // 全屏（原生 API，作用于视频元素）
-    else if (this._match(e, sc.fullscreen)) {
-      e.preventDefault();
-      this._toggleFullscreen();
+    if (this._isGroupEnabled('fullscreen')) {
+      if (this._match(e, sc.fullscreen)) {
+        e.preventDefault();
+        this._toggleFullscreen();
+      }
     }
     // 移动
-    else if (this._match(e, sc.moveUp)) {
-      e.preventDefault();
-      engine.move(0, -CONFIG.move.stepSize);
-    } else if (this._match(e, sc.moveDown)) {
-      e.preventDefault();
-      engine.move(0, CONFIG.move.stepSize);
-    } else if (this._match(e, sc.moveLeft)) {
-      e.preventDefault();
-      engine.move(-CONFIG.move.stepSize, 0);
-    } else if (this._match(e, sc.moveRight)) {
-      e.preventDefault();
-      engine.move(CONFIG.move.stepSize, 0);
+    if (this._isGroupEnabled('move')) {
+      if (this._match(e, sc.moveUp)) {
+        e.preventDefault();
+        engine.move(0, -CONFIG.move.stepSize);
+      } else if (this._match(e, sc.moveDown)) {
+        e.preventDefault();
+        engine.move(0, CONFIG.move.stepSize);
+      } else if (this._match(e, sc.moveLeft)) {
+        e.preventDefault();
+        engine.move(-CONFIG.move.stepSize, 0);
+      } else if (this._match(e, sc.moveRight)) {
+        e.preventDefault();
+        engine.move(CONFIG.move.stepSize, 0);
+      }
     }
-    // A-B 循环清空（Shift 版优先）
-    else if (this._match(e, sc.abClearA)) {
-      e.preventDefault();
-      const ab = this.app.abLoop;
-      if (ab) ab.clearA();
-    } else if (this._match(e, sc.abClearB)) {
-      e.preventDefault();
-      const ab = this.app.abLoop;
-      if (ab) ab.clearB();
-    }
-    // A-B 循环设置 / 开关
-    else if (this._match(e, sc.abSetA)) {
-      e.preventDefault();
-      const ab = this.app.abLoop;
-      if (ab) ab.setA();
-    } else if (this._match(e, sc.abSetB)) {
-      e.preventDefault();
-      const ab = this.app.abLoop;
-      if (ab) ab.setB();
-    } else if (this._match(e, sc.abToggle)) {
-      e.preventDefault();
-      const ab = this.app.abLoop;
-      if (ab) ab.toggleLoop();
+    // A-B 循环
+    if (this._isGroupEnabled('abLoop')) {
+      if (this._match(e, sc.abClearA)) {
+        e.preventDefault();
+        const ab = this.app.abLoop;
+        if (ab) ab.clearA();
+      } else if (this._match(e, sc.abClearB)) {
+        e.preventDefault();
+        const ab = this.app.abLoop;
+        if (ab) ab.clearB();
+      } else if (this._match(e, sc.abSetA)) {
+        e.preventDefault();
+        const ab = this.app.abLoop;
+        if (ab) ab.setA();
+      } else if (this._match(e, sc.abSetB)) {
+        e.preventDefault();
+        const ab = this.app.abLoop;
+        if (ab) ab.setB();
+      } else if (this._match(e, sc.abToggle)) {
+        e.preventDefault();
+        const ab = this.app.abLoop;
+        if (ab) ab.toggleLoop();
+      }
     }
     // 帮助 / 配置 / 展开
-    else if (this._match(e, sc.showHelp)) {
-      e.preventDefault();
-      if (this.app.helpPanel) this.app.helpPanel.toggle();
-    } else if (this._match(e, sc.showConfig)) {
-      e.preventDefault();
-      if (this.app.configPanel) this.app.configPanel.toggle();
-    } else if (this._match(e, sc.toggleExpand)) {
-      e.preventDefault();
-      if (this.app.ui) this.app.ui.toggleExpand();
+    if (this._isGroupEnabled('panels')) {
+      if (this._match(e, sc.showHelp)) {
+        e.preventDefault();
+        if (this.app.helpPanel) this.app.helpPanel.toggle();
+      } else if (this._match(e, sc.showConfig)) {
+        e.preventDefault();
+        if (this.app.configPanel) this.app.configPanel.toggle();
+      } else if (this._match(e, sc.toggleExpand)) {
+        e.preventDefault();
+        if (this.app.ui) this.app.ui.toggleExpand();
+      }
     }
   }
 

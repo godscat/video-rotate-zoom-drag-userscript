@@ -11,12 +11,13 @@
 - **零平台选择器**：不依赖任何站点 CSS 选择器，直接 `document.querySelector('video')` + `play` 事件发现视频，`@match *://*/*` 通配所有站点。
 - **两阶段懒启动**：脚本加载后仅绑定 `play` + MutationObserver（阶段一，轻量探测）；首次发现达标视频才由 `_ensureHandlers()` 创建 UI / 交互处理器并绑定显隐监听（阶段二）。无视频站点零监听开销。
 - **站点黑名单**：`config.js` 的 `blacklist`（hostname 精确匹配），主入口命中即**完全不构造 App**（零副作用）。
-- **悬浮浮层 UI**：控制条为 `position:fixed` 容器挂到 `body`，通过 `getBoundingClientRect()` 实时跟随视频父元素（stage）位置——而非塞进平台自己的控制栏。
-- **工具条避让原生控制栏**：`reposition(stageRect, videoRect)` 相对 **video 底边**定位（而非 stage 底边），自动避开 stage 内的原生控制栏；stage 塌陷（如 YouTube `.html5-video-container`）时回退到 video rect。
+- **悬浮浮层 UI**：控制条为 `position:fixed` 容器挂到 `body`，定位在视频区域**左上角**（CSS `top/left`），通过 `getBoundingClientRect()` 实时跟随视频父元素（stage）位置——而非塞进平台自己的控制栏。
+- **位置同步**：`reposition(stageRect)` 跟随 stage 位置；SPA MutationObserver 在 DOM 变化引发布局位移时同步修正（解决 B 站导航栏延迟出现导致 container 偏移）；rAF 轮询 1500ms 覆盖初始布局稳定。
 - **变换作用于 `<video>` 本身**：通过动态 `<style>` 标签 + `video[data-vrz-active]` 属性选择器注入 `transform`，不污染 inline style。
 - **Trusted Types 兼容**：`util.setHTML()` + 单例 `vrz-html` 策略，兼容 YouTube 等启用 TT 的站点；无 TT 环境降级为直接赋值。
 - **90° 旋转无黑边**：`calculateScale()` 按 `object-fit:contain` 反推缩放比例。
 - **每站点配置**：拖拽/滚轮的修饰键组合按 `location.hostname` 经 GM_setValue 保存（key 格式 `vrz-site:{host}`）；`siteConfig.load()` 推迟到阶段二，无视频站点不读写。
+- **键盘快捷键默认禁用**：`shortcuts.enabled=false`；配置面板可启用总开关 + 7 个分组独立开关（GM_setValue 存 `vrz-kb-enabled`/`vrz-kb-groups`）。
 - **尺寸门槛**：渲染尺寸 < 400×225 的视频（如信息流 hover 预览）不激活，避免误触。
 
 ## 构建系统
@@ -76,10 +77,10 @@ A-B 循环：设置起点 A / 终点 B；`timeupdate` 监听回跳；`clearA/B()
 **协调器**：两阶段启动——构造期仅创建无副作用模块（SiteConfig/TransformEngine/ABLoop）；`start()` 仅绑定 play+MutationObserver（阶段一）；首次 `activate()` 由 `_ensureHandlers()` 创建 UI/交互处理器（阶段二，幂等）；视频发现/SPA/位置同步（stage 塌陷回退 videoRect）/显隐/清理。
 
 #### `config.js`
-全局默认配置（业务参数）：缩放/旋转/移动/AB循环参数、激活尺寸阈值、站点黑名单、拖拽/滚轮默认修饰键、`e.code` 快捷键、日志开关、UI 偏移（`ui.bottomBase`）、倍速档位（`playbackSpeeds`）、IndexedDB 结构（`db.*`）。`export default CONFIG`。
+全局默认配置（业务参数）：缩放/旋转/移动/AB循环参数、激活尺寸阈值、站点黑名单、拖拽/滚轮默认修饰键、`e.code` 快捷键（`shortcuts.enabled` 默认 false）、快捷键分组（`shortcutGroups`）、日志开关、UI 偏移（`ui.bottomBase`）、倍速档位（`playbackSpeeds`）。`export default CONFIG`。
 
 #### `config-panel.js`
-配置模态：修饰键区（拖拽/缩放，按站点存 IndexedDB）+ 显示选项区（暂停时常驻等，经 GM 全局）；min-1 校验；DOM 经 `util.setHTML()` 注入；`onPersistOnChange` 回调即时应用。
+配置模态：修饰键区（拖拽/缩放，按站点存 GM_setValue）+ 键盘快捷键区（总开关+分组独立开关，全局 GM_setValue）+ 显示选项区（暂停时常驻等，经 GM 全局）；min-1 校验；DOM 经 `util.setHTML()` 注入；`onPersistOnChange` 回调即时应用。
 
 #### `constants.js`
 **技术映射表**（带 `@typedef`）：`CONSTANTS.VALID_MODS` / `VALID_MODS_KEYNAMES`（修饰键→KeyboardEvent 键名）/ `VALID_MODS_KEYDISPLAY`（Windows/Mac 显示名）。仅放类型化的基础设施常量，业务数值参数归 `config.js`。
@@ -91,7 +92,7 @@ document 级 **pointerdown**/pointermove/pointerup（比 mousedown 更早拦截�
 快捷键只读浮层（含 A-B 与面板快捷键）；DOM 经 `util.setHTML()` 注入。
 
 #### `keyboard-shortcuts.js`
-`e.code` 匹配（规避 Shift 改字符问题）；**无激活视频时不拦截**；缩放/旋转/移动/还原/全屏；A-B 设置清空开关；H/逗号/句号面板操作。
+`e.code` 匹配（规避 Shift 改字符问题）；**默认禁用**（`_isGloballyEnabled()` 读 `vrz-kb-enabled`）；**无激活视频时不拦截**；按分组检查 `_isGroupEnabled()`（读 `vrz-kb-groups`）；缩放/旋转/移动/还原/全屏；A-B 设置清空开关；H/逗号/句号面板操作。
 
 #### `logger.js`
 日志单例（`getLogger(options)`）。格式 `[vrz]@[host] [级别]`（`timePrefix` 控制是否加 `[HH:MM:SS]`）；`createChild(module, timePrefix?)` 派生子 logger 并继承配置；`use()` 返回自身；`module` 字段保留但当前不输出。
@@ -100,13 +101,13 @@ document 级 **pointerdown**/pointermove/pointerup（比 mousedown 更早拦截�
 运行时站点配置：默认值 + GM_setValue 加载合并（key 格式 `vrz-site:{host}`；`load()` 由 App 在阶段二调用）+ `subscribe()`；`normModifiers()` 经 `CONSTANTS.VALID_MODS` 过滤；`getDragConfig()`/`getZoomConfig()`；min-1 强制。`checkModifiers` 已移至 `util.js`。
 
 #### `styles.js`
-玻璃浮层 CSS（静态字符串），通过 `<style>` 注入。含主/次面板、模态、倍速下拉、帮助浮层样式。
+玻璃浮层 CSS（静态字符串），通过 `<style>` 注入。含主/次面板、模态、缩放/倍速/方向移动弹出菜单、帮助浮层样式。
 
 #### `transform-engine.js`
 **唯一状态源**：持有 zoom/rotation/offset；`apply()` 用动态 `<style>` 应用变换；`calculateScale()` 处理 90°；ResizeObserver 监听尺寸重算；提供 zoomIn/zoomOut/rotateLeft/rotateRight/move/reset。
 
 #### `ui-overlay.js`
-悬浮控制条：主栏（缩放/倍速下拉/旋转/还原/展开）+ 次级面板（方向组↑↓←→长按连发 / A-B 按钮 / 配置 / 帮助 / 缩回）；`reposition(stageRect, videoRect)` **相对 video 底边定位**（`CONFIG.ui.bottomBase`）避开原生控制栏；hover 显隐；`ratechange` 同步倍速显示；倍速档位读 `CONFIG.playbackSpeeds`；时间显示用 `util.formatTime`，缩放% 用 `util.formatText`。
+悬浮控制条：主栏（缩放/倍速下拉/旋转/还原/展开）+ 次级面板（方向移动图标按钮弹出十字菜单 / A-B 按钮 / 配置 / 帮助 / 缩回）；`reposition(stageRect)` 跟随 stage **左上角**定位（CSS `top/left`）；hover 显隐；`ratechange` 同步倍速显示；倍速档位读 `CONFIG.playbackSpeeds`；时间显示用 `util.formatTime`，缩放% 用 `util.formatText`。
 
 #### `util.js`
 **工具函数集**（函数声明，跨模块提升可用）：`checkModifiers`（修饰键匹配，读 `CONSTANTS.VALID_MODS_KEYNAMES`）、`formatTime`（时间格式化，读 `CONFIG.abloop.showMilliseconds`）、`formatText`（`{value}` 占位替换）、`fillPrefixWith`、`setHTML`（安全 innerHTML，兼容 Trusted Types，单例 `vrz-html` 策略）、`getPref/setPref`（全局偏好，封装 GM_getValue/GM_setValue）。
@@ -144,7 +145,7 @@ document 级 wheel（capture）；读 `site-config` 修饰键（经 `util.checkM
 - **TransformEngine 是唯一真相源**：所有状态变更经它，`onChange` 回调通知 UI 刷新。
 - **事件驱动 + 全局监听**：Drag/Wheel/Keyboard 在 document 上监听一次（阶段二绑定），通过 `app.activeVideo` 取当前视频，无需随视频切换重绑。
 - **生命周期**：各模块提供 `destroy()`；App 提供 `stop()` 统一清理（对懒加载对象用 `?.` 保护）。
-- **SPA 感知**：MutationObserver 监听 body，防抖后 `scan()`；`play` 事件即时激活。
+- **SPA 感知**：MutationObserver 监听 body，防抖后 `scan()` + `updateRectAndPosition()`（DOM 变化引发布局位移时同步修正浮层位置）；`play` 事件即时激活。
 - **平台无关**：完全不用平台选择器；差异化需求（如拖拽修饰键）通过每站点配置实现。
 
 ## 用户脚本配置
@@ -167,7 +168,7 @@ document 级 wheel（capture）；读 `site-config` 修饰键（经 `util.checkM
 所有配置统一经 Tampermonkey 的 `GM_setValue`/`GM_getValue` API 存储（跨 origin 的脚本全局空间）。
 
 - **站点修饰键配置**：key 格式 `vrz-site:{host}`（如 `vrz-site:www.bilibili.com`），值为 `{ drag:{enabled,modifiers}, zoom:{enabled,modifiers} }`。`site-config.js` 的 `load()`/`_persist()` 读写。
-- **全局偏好**（暂停时常驻等）：key 如 `vrz-persist-on-pause`，值为布尔。`util.getPref/setPref` 封装。
+- **全局偏好**（暂停时常驻、快捷键开关等）：key 如 `vrz-persist-on-pause`（布尔）、`vrz-kb-enabled`（布尔）、`vrz-kb-groups`（对象）。`util.getPref/setPref` 封装。
 - `siteConfig.load()` 仅在阶段二调用 → 无视频站点不读 GM 配置。
 - 加载/保存失败时优雅降级到默认值。
 
@@ -179,11 +180,11 @@ document 级 wheel（capture）；读 `site-config` 修饰键（经 `util.checkM
 - **激活尺寸门槛**：`minActivateWidth=400, minActivateHeight=225`
 - **站点黑名单**：`s1.hdslb.com`、`message.bilibili.com`、`challenges.cloudflare.com`（hostname 精确匹配，命中不启动）
 - **拖拽/滚轮默认修饰键**：`['shift']`（可组合 alt/ctrl/shift，min-1）
-- **UI 工具条偏移**：`ui.bottomBase=14`（相对 video 底边）
+- **UI 工具条偏移**：`ui.bottomBase=14`（相对 video 左上角）
 - **暂停时常驻**：`ui.persistOnPause=false`（默认暂停后自动隐藏；配置面板可切换，经 GM 全局生效）
 - **倍速档位**：`playbackSpeeds=[2, 1.5, 1.25, 1, 0.75, 0.5]`
 - **日志**：`log.enabled`（开发阶段默认开启；正式发布前可改 `false`）
-- **快捷键**（`e.code`）：
+- **快捷键**（`e.code`）：**默认禁用**（`shortcuts.enabled=false`），配置面板可启用总开关 + 分组独立开关
   - `Shift + Equal/Minus` 缩放
   - `Shift + KeyL/KeyR` 旋转
   - `Shift + Digit0` 还原
@@ -227,6 +228,6 @@ document 级 wheel（capture）；读 `site-config` 修饰键（经 `util.checkM
 ## Git 提交与推送规则
 
 - **必须等用户测试过才能 commit**：代码改动（尤其功能逻辑）完成后，必须先让用户在浏览器中加载 `dist/video-rotate-zoom-drag.user.js` 实测验证通过，得到用户确认后才可以 `git commit`。不要改完立即提交。
-- **测试通过后同步文档再提交**：用户确认测试通过后，先更新 `README.md`（功能特性、工具条布局、快捷键表、项目结构等）和 `CLAUDE.md`（模块清单、依赖图、配置默认值等）与最新代码一致，然后再 commit。
+- **测试通过后同步文档再提交**：用户确认测试通过后，先更新 `README.md`（功能特性、工具条布局、快捷键表、项目结构等）和 `CLAUDE.md`（模块清单、依赖图、配置默认值等）与最新代码一致，然后再 commit。如果任务来源是 `TODOS.md`，则先更新 `TODOS.md` 中的任务状态为完成，然后再 commit。
 - **推送必须得到用户明确许可**：只有在用户明确说"推送"、"上传到 GitHub"等指令时才执行 `git push`。日常开发构建、修改代码后**不要自动推送**。
 - **首次推送前检查 remote**：确认 `origin` 指向用户指定的仓库地址。

@@ -12,11 +12,12 @@
 - 🔄 **双向旋转**：90° 增量，左旋 / 右旋；90°/270° 自动按 contain 反推缩放，无黑边
 - 🖱️ **拖拽平移**：按修饰键拖拽视频；可按站点配置修饰键组合
 - 🖲️ **滚轮缩放**：按修饰键 + 滚轮缩放
-- 🧭 **悬浮工具条**：跟随视频位置的玻璃浮层；**自动避让原生控制栏**（相对视频底边定位），鼠标移入显示、移出自动隐藏
-- ▶ **展开面板**：方向按钮（↑↓←→，长按连发）+ A-B 循环 + 配置 + 帮助
+- 🧭 **悬浮工具条**：定位在视频区域**左上角**的玻璃浮层，鼠标移入显示、移出自动隐藏
+- ▶ **展开面板**：方向移动（四向箭头图标，点击弹出）+ A-B 循环 + 配置 + 帮助
 - ⏱ **A-B 循环**：设置起点/终点，区间内自动回跳（快捷键 `[` / `]` / `\`）
 - ⚡ **倍速播放**：0.5× / 0.75× / 1× / 1.25× / 1.5× / 2× 下拉选择
-- ⚙ **每站点配置**：拖拽/滚轮修饰键按站点独立保存（IndexedDB），可组合 alt/ctrl/shift
+- ⌨ **键盘快捷键**：默认禁用，可在配置面板中启用全部或按分组独立开关
+- ⚙ **每站点配置**：拖拽/滚轮修饰键按站点独立保存，可组合 alt/ctrl/shift
 - 🛡 **Trusted Types 兼容**：YouTube 等启用 TT 的站点正常工作
 - 🚫 **不误触**：尺寸过小的视频（如信息流 hover 预览）不激活
 
@@ -33,7 +34,7 @@
 
 ## ⌨️ 快捷键
 
-默认全部以 **Shift** 为修饰键：
+> **默认禁用**：键盘快捷键开箱即用为关闭状态。需要在配置面板（⚙ → 键盘快捷键）中启用总开关，可选择全部启用或按分组独立开关（缩放/旋转/全屏/还原/移动/A-B循环/面板）。
 
 | 快捷键 | 功能 |
 |--------|------|
@@ -69,27 +70,37 @@
 
 ## 🧰 工具条
 
+工具条定位在视频区域**左上角**：
+
 ```
-次级：[↑][↓][←][→] │ [A][B][L] │ [⚙][?][«]
-      方向(长按连发)   A-B 循环    配置/帮助/缩回
+次级：[✛] │ [A][B][L] │ [⚙][?][«]
+      方向移动   A-B 循环    配置/帮助/缩回
+      (点击弹出十字方向菜单，长按连发)
+
 主栏：[−][100%▾][+][1×▾] │ [↺][↻] │ [还原][»]
       缩放档位/倍速下拉      左右旋转     还原/展开
 ```
 
 - 鼠标移入视频区域显示，移出约 3 秒后隐藏；暂停时常驻
-- **垂直定位**：相对视频底边定位，自动避开站点原生控制栏；视频容器塌陷时回退到视频本身的位置
+- 缩放档位、倍速、方向移动的下拉/弹出菜单**向下展开**
 - 所有按钮 hover 显示提示（动作 + 快捷键）
 
 ## ⚙ 配置面板
 
 点击工具条的 **⚙** 打开：
 
-**修饰键**（按站点独立，存 IndexedDB）——配置「鼠标拖拽」与「滚轮缩放」的前置修饰键：
+**修饰键**（按站点独立，存 GM_setValue）——配置「鼠标拖拽」与「滚轮缩放」的前置修饰键：
 
 - **启用/禁用** 切换：禁用时该功能完全关闭
 - **alt / ctrl / shift** 多选：启用时可选任意组合（如选 alt+ctrl，则需同时按下两者）
 - **至少保留 1 个**：取消最后一个会被阻止并提示（避免无修饰键时与点击暂停冲突）
-- 配置按 `location.hostname` 存入 IndexedDB，每个站点独立保存
+- 配置按 `location.hostname` 存入 GM_setValue（key 格式 `vrz-site:{host}`），每个站点独立保存
+
+**键盘快捷键**（全局）：
+
+- **总开关**：启用/禁用全部键盘快捷键（默认禁用）
+- **分组独立开关**：启用后可按分组单独控制——缩放 / 旋转 / 全屏 / 还原 / 移动 / A-B循环 / 面板
+- 经 `GM_setValue` 全局保存（`vrz-kb-enabled` / `vrz-kb-groups`）
 
 **显示选项**（全局，跨站点一致）：
 
@@ -105,15 +116,15 @@ src/
 └── modules/
     ├── ab-loop.js                  # A-B 循环（起点/终点/自动回跳）
     ├── app.js                      # 协调器：两阶段懒启动 + 视频发现/SPA/位置同步/显隐/清理
-    ├── config.js                   # 全局配置：参数/修饰键/快捷键/阈值/黑名单/日志/ui.bottomBase/playbackSpeeds/db.*
+    ├── config.js                   # 全局配置：参数/修饰键/快捷键/分组/阈值/黑名单/日志/ui/playbackSpeeds
     ├── constants.js                # 技术映射表：修饰键→键名、win/mac 显示（CONSTANTS.VALID_MODS*）
     ├── transform-engine.js         # 变换状态源：apply()/calculateScale()/zoom/rotate/move
-    ├── ui-overlay.js               # 悬浮工具条（相对 video 底边定位，formatTime/formatText）
+    ├── ui-overlay.js               # 悬浮工具条（左上角定位，方向移动弹出菜单，缩放/倍速下拉）
     ├── drag-handler.js             # 拖拽（document 级，util.checkModifiers）
     ├── wheel-handler.js            # 滚轮缩放（document 级，util.checkModifiers）
-    ├── keyboard-shortcuts.js       # 键盘快捷键（e.code 匹配，无视频不拦截）
+    ├── keyboard-shortcuts.js       # 键盘快捷键（e.code 匹配，默认禁用，分组开关）
     ├── site-config.js              # 运行时站点配置（GM_setValue，key vrz-site:{host}）
-    ├── config-panel.js             # 配置面板：修饰键（按站点）+ 显示选项（全局）
+    ├── config-panel.js             # 配置面板：修饰键（按站点）+ 快捷键开关 + 显示选项（全局）
     ├── help-panel.js               # 快捷键只读浮层（util.setHTML 注入）
     ├── styles.js                   # 玻璃浮层 CSS（静态字符串，<style> 注入）
     ├── logger.js                   # 日志单例（[vrz]@[host] 格式，createChild/use）
@@ -146,7 +157,7 @@ node --check dist/video-rotate-zoom-drag.user.js   # 语法校验
 - **站点黑名单**：`config.js` 的 `blacklist`（hostname 精确匹配），主入口命中即不启动
 - **零平台选择器**：`document.querySelector('video')` + `play` 事件 + MutationObserver（SPA）
 - **变换作用于 `<video>`**：动态 `<style>` 标签 + `video[data-vrz-active]` 选择器，不污染 inline style
-- **位置跟随**：浮层 `position:fixed`，`reposition(stageRect, videoRect)` 相对 **video 底边**定位避开原生控制栏；容器塌陷时回退 video rect
+- **位置跟随**：浮层 `position:fixed`，`reposition(stageRect)` 跟随视频父元素位置；SPA MutationObserver 在 DOM 变化引发布局位移时同步修正（解决 B 站导航栏延迟出现导致的位置偏移）
 - **Trusted Types 兼容**：`setHTML()` + `vrz-html` 策略（YouTube 等 TT 站点）
 - **尺寸门槛**：渲染尺寸 < 400×225 的视频不激活（过滤信息流预览）
 - **全局事件**：Drag/Wheel/Keyboard 在 document 监听一次（阶段二绑定），经 `app.activeVideo` 取当前视频
