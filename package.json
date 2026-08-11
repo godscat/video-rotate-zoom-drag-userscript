@@ -1,6 +1,6 @@
 {
   "name": "video-rotate-zoom-drag-userscript",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "多平台视频增强：缩放、旋转、拖拽移动和还原功能",
   "main": "src/video-rotate-zoom-drag.user.js",
   "repository": "https://github.com/godscat/video-rotate-zoom-drag-userscript",

@@ -88,7 +88,7 @@ class SiteConfig {
     }
     if (!next.enabled) next.modifiers = [];
     this.data.drag = next;
-    await this._persist();
+    this._persist();
     this._notify();
   }
 
@@ -103,7 +103,7 @@ class SiteConfig {
     }
     if (!next.enabled) next.modifiers = [];
     this.data.zoom = next;
-    await this._persist();
+    this._persist();
     this._notify();
   }
 

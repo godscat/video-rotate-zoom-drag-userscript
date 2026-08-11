@@ -1,5 +1,5 @@
-import { CONSTANTS } from './constants.js';
-import CONFIG from './config.js';
+import { CONSTANTS } from "./constants.js";
+import CONFIG from "./config.js";
 
 /**
  * 修饰键组合匹配：所选 modifiers 全部按下才返回 true
@@ -23,8 +23,8 @@ function checkModifiers(e, modifiers) {
  * @param {string} fillChar
  * @returns {string}
  */
-function fillPrefixWith(num, width, fillChar = '0') {
-  fillChar = fillChar ? fillChar[0] : '0';
+function fillPrefixWith(num, width, fillChar = "0") {
+  fillChar = fillChar ? fillChar[0] : "0";
   return String(num).padStart(width, fillChar);
 }
 
@@ -35,7 +35,7 @@ function fillPrefixWith(num, width, fillChar = '0') {
  * @returns {string}
  */
 function formatText(template, value) {
-  return template.replace('{value}', value);
+  return template.replace("{value}", value);
 }
 
 /**
@@ -47,17 +47,17 @@ function formatText(template, value) {
 function formatTime(time) {
   let showMilliseconds = CONFIG.abloop.showMilliseconds;
 
-  if (time == null) return '';
+  if (time == null) return "";
   if (!isFinite(time) || time < 0) time = 0;
   let fillFun = function (num) {
     return fillPrefixWith(num, 2);
-  }
+  };
   const h = fillFun(Math.floor(time / 3600));
   const m = fillFun(Math.floor((time % 3600) / 60));
   const s = fillFun(Math.floor(time % 60));
   let displayTime = `${h}:${m}:${s}`;
   if (showMilliseconds) {
-    const ms = fillPrefixWith(Math.floor(time * 1000) % 1000,3);
+    const ms = fillPrefixWith(Math.floor(time * 1000) % 1000, 3);
     displayTime = `${displayTime}.${ms}`;
   }
   return displayTime;
@@ -67,9 +67,9 @@ let __vrzTTPolicy;
 function __vrzGetTTPolicy() {
   if (__vrzTTPolicy !== undefined) return __vrzTTPolicy;
   const tt = window.trustedTypes;
-  if (tt && typeof tt.createPolicy === 'function') {
+  if (tt && typeof tt.createPolicy === "function") {
     try {
-      __vrzTTPolicy = tt.createPolicy('vrz-html', { createHTML: (s) => s });
+      __vrzTTPolicy = tt.createPolicy("vrz-html", { createHTML: (s) => s });
     } catch (e) {
       __vrzTTPolicy = null;
     }
@@ -91,13 +91,22 @@ function setHTML(el, html) {
 
 /**
  * 读取全局偏好（跨站点，经 GM_getValue；无 GM 环境返回默认值）
- * @param {string} key
- * @param {*} defaultValue
+ * @param {string} key 键
+ * @param {*} defaultValue 默认值
+ * @param {boolean} persist 持久化存储默认值
  * @returns {*}
  */
-function getPref(key, defaultValue) {
+function getPref(key, defaultValue, persist = false) {
   try {
-    if (typeof GM_getValue === 'function') return GM_getValue(key, defaultValue);
+    if (typeof GM_getValue === "function") {
+      let val = GM_getValue(key, null);
+      if (val === null && defaultValue !== undefined && defaultValue !== null) {
+        if (persist) setPref(key, defaultValue);
+        return defaultValue;
+      } else {
+        return val;
+      }
+    }
   } catch (e) {}
   return defaultValue;
 }
@@ -109,7 +118,7 @@ function getPref(key, defaultValue) {
  */
 function setPref(key, value) {
   try {
-    if (typeof GM_setValue === 'function') GM_setValue(key, value);
+    if (typeof GM_setValue === "function") GM_setValue(key, value);
   } catch (e) {}
 }
 

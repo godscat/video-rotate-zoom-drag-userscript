@@ -20,26 +20,39 @@
 import { App } from "./modules/app.js";
 import { getLogger } from "./modules/logger.js";
 import CONFIG from "./modules/config.js";
+import { getPref } from "./modules/util.js";
+import { BlockMenu } from "./modules/block-menu.js";
 
 (function () {
   "use strict";
 
   let app = null;
 
+  const hostname = location.hostname;
+  const logEnabled = CONFIG.log.enabled;
+
+  // 读取黑白名单配置（深拷贝避免污染 CONFIG.block 默认值）
+  const block = JSON.parse(JSON.stringify(getPref("block", CONFIG.block, true)));
+
+  // 注册 GM 菜单（即使站点被拦截也能操作）
+  const blockMenu = new BlockMenu(hostname, block);
+  blockMenu.register();
+
+  // ====== 入口级拦截 ======
+  if (block.useBlacklist && block.blacklist.includes(hostname)) {
+    if (logEnabled) console.info(`[vrz]@${hostname} [INFO] 命中黑名单，脚本不启动`);
+    return;
+  }
+  if (block.useWhitelist && !block.whitelist.includes(hostname)) {
+    if (logEnabled) console.info(`[vrz]@${hostname} [INFO] 未命中白名单，脚本不启动`);
+    return;
+  }
+
   function main() {
     try {
-      // 首次初始化全局日志器（独立开关，由 config.log.enabled 控制）
-      const logger = getLogger({ enabled: CONFIG.log.enabled }).createChild("Main");
-
-      // 黑名单：入口级拦截，命中则完全不构造 App（零监听、零副作用）
-      if (CONFIG.blacklist && CONFIG.blacklist.includes(location.hostname)) {
-        logger.info(`站点 ${location.hostname} 命中黑名单，脚本不启动`);
-        return;
-      }
-
+      const logger = getLogger({ enabled: logEnabled }).createChild("Main");
       app = new App();
       app.start();
-      // logger.info("视频控制器启动成功（浮层架构）");
     } catch (error) {
       console.error("[vrz] 启动失败:", error);
     }

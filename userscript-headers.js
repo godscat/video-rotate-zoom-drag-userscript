@@ -8,6 +8,7 @@
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_registerMenuCommand
 // @license      GPL-3.0-or-later
 // @run-at       document-start
 // ==/UserScript==

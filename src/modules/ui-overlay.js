@@ -117,7 +117,7 @@ class UIOverlay {
     // 缩小 / 显示 / 放大
     this.mainBar.appendChild(this._btn('−', '缩小 (Shift + -)', () => this.engine.zoomOut()));
 
-    // 缩放档位下拉（点击展开 levels）
+    // 缩放档位下拉（点击展开 zoom levels）
     this.mainBar.appendChild(this._buildZoom());
 
     this.mainBar.appendChild(this._btn('+', '放大 (Shift + +)', () => this.engine.zoomIn()));
