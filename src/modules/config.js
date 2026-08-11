@@ -27,8 +27,6 @@ const CONFIG = {
 
   // AB 循环
   abloop: {
-    // 显示毫秒数
-    showMilliseconds: false,
   },
 
   // 视频平移步长（像素）

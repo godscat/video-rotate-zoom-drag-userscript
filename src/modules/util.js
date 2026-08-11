@@ -39,14 +39,11 @@ function formatText(template, value) {
 }
 
 /**
- * 格式化秒：<1h 为 MM:SS，≥1h 为 H:MM:SS
- * 支持毫秒（由 CONFIG.abloop.showMilliseconds 控制）
+ * 格式化秒：H:MM:SS.d（始终带一位小数，0.1s 精度）
  * @param {number} time
  * @returns {string}
  */
 function formatTime(time) {
-  let showMilliseconds = CONFIG.abloop.showMilliseconds;
-
   if (time == null) return "";
   if (!isFinite(time) || time < 0) time = 0;
   let fillFun = function (num) {
@@ -55,11 +52,8 @@ function formatTime(time) {
   const h = fillFun(Math.floor(time / 3600));
   const m = fillFun(Math.floor((time % 3600) / 60));
   const s = fillFun(Math.floor(time % 60));
-  let displayTime = `${h}:${m}:${s}`;
-  if (showMilliseconds) {
-    const ms = fillPrefixWith(Math.floor(time * 1000) % 1000, 3);
-    displayTime = `${displayTime}.${ms}`;
-  }
+  const d = Math.floor((time % 1) * 10);
+  let displayTime = `${h}:${m}:${s}.${d}`;
   return displayTime;
 }
 
