@@ -33,10 +33,16 @@ import { BlockMenu } from "./modules/block-menu.js";
 
   // 读取黑白名单配置（深拷贝避免污染 CONFIG.block 默认值）
   const block = JSON.parse(JSON.stringify(getPref("block", CONFIG.block, true)));
+  // 清理黑白名单交集（防老版本遗留，确保互斥）
+  block.blacklist = block.blacklist.filter((h) => !block.whitelist.includes(h));
 
-  // 注册 GM 菜单（即使站点被拦截也能操作）
-  const blockMenu = new BlockMenu(hostname, block);
-  blockMenu.register();
+  // 注册 GM 菜单（仅主框架，避免 iframe 重复注册）
+  let _isTop = true;
+  try { _isTop = window.top === window; } catch (e) {}
+  if (_isTop) {
+    const blockMenu = new BlockMenu(hostname, block);
+    blockMenu.register();
+  }
 
   // ====== 入口级拦截 ======
   if (block.useBlacklist && block.blacklist.includes(hostname)) {

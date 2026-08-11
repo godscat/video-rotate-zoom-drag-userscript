@@ -10,7 +10,7 @@
 
 - **零平台选择器**：不依赖任何站点 CSS 选择器，直接 `document.querySelector('video')` + `play` 事件发现视频，`@match *://*/*` 通配所有站点。
 - **两阶段懒启动**：脚本加载后仅绑定 `play` + MutationObserver（阶段一，轻量探测）；首次发现达标视频才由 `_ensureHandlers()` 创建 UI / 交互处理器并绑定显隐监听（阶段二）。无视频站点零监听开销。
-- **站点黑名单**：`config.js` 的 `blacklist`（hostname 精确匹配），主入口命中即**完全不构造 App**（零副作用）。
+- **黑白名单**：`config.js` 的 `block` 对象（`useBlacklist`/`useWhitelist`/`blacklist`/`whitelist`），经 `GM_setValue` 持久化（key `block`）；主入口入口级拦截，命中黑名单或未命中白名单即**完全不构造 App**；黑白名单**互斥**（加入一个自动从另一个移除）；`BlockMenu` 类提供 GM 菜单 + 懒加载管理面板（点击才注入 DOM）；仅主框架注册菜单。
 - **悬浮浮层 UI**：控制条为 `position:fixed` 容器挂到 `body`，定位在视频区域**左上角**（CSS `top/left`），通过 `getBoundingClientRect()` 实时跟随视频父元素（stage）位置——而非塞进平台自己的控制栏。
 - **位置同步**：`reposition(stageRect)` 跟随 stage 位置；SPA MutationObserver 在 DOM 变化引发布局位移时同步修正（解决 B 站导航栏延迟出现导致 container 偏移）；rAF 轮询 1500ms 覆盖初始布局稳定。
 - **变换作用于 `<video>` 本身**：通过动态 `<style>` 标签 + `video[data-vrz-active]` 属性选择器注入 `transform`，不污染 inline style。
@@ -76,8 +76,11 @@ A-B 循环：设置起点 A / 终点 B；`timeupdate` 监听回跳；`clearA/B()
 #### `app.js`
 **协调器**：两阶段启动——构造期仅创建无副作用模块（SiteConfig/TransformEngine/ABLoop）；`start()` 仅绑定 play+MutationObserver（阶段一）；首次 `activate()` 由 `_ensureHandlers()` 创建 UI/交互处理器（阶段二，幂等）；视频发现/SPA/位置同步（stage 塌陷回退 videoRect）/显隐/清理。
 
+#### `block-menu.js`
+黑白名单 GM 菜单 + 懒加载管理面板。`BlockMenu` 类：GM 菜单仅注册一项「管理黑白名单」，点击后才 `_build()` 注入样式（`Styles.inject()`）+ 创建 DOM + 绑定事件。面板含：本页发现的域名（`_scanHosts()` 实时扫描 iframe src，MutationObserver 异步刷新）、黑白名单启禁用开关 + 站点列表 + 添加输入框。黑白名单互斥（`_addToBlacklist`/`_addToWhitelist` 加入一个自动从另一个移除）。`_save()` 经 `setPref('block', ...)` 持久化 + 标记 `_dirty` 启用刷新按钮。
+
 #### `config.js`
-全局默认配置（业务参数）：缩放/旋转/移动/AB循环参数、激活尺寸阈值、站点黑名单、拖拽/滚轮默认修饰键、`e.code` 快捷键（`shortcuts.enabled` 默认 false）、快捷键分组（`shortcutGroups`）、日志开关、UI 偏移（`ui.bottomBase`）、倍速档位（`playbackSpeeds`）。`export default CONFIG`。
+全局默认配置（业务参数）：缩放/旋转/移动/AB循环参数、激活尺寸阈值、黑白名单（`block.useBlacklist`/`useWhitelist`/`blacklist`/`whitelist`）、拖拽/滚轮默认修饰键、`e.code` 快捷键（`shortcuts.enabled` 默认 false）、快捷键分组（`shortcutGroups`）、日志开关、UI 偏移（`ui.bottomBase`）、倍速档位（`playbackSpeeds`）。`export default CONFIG`。
 
 #### `config-panel.js`
 配置模态：修饰键区（拖拽/缩放，按站点存 GM_setValue）+ 键盘快捷键区（总开关+分组独立开关，全局 GM_setValue）+ 显示选项区（暂停时常驻等，经 GM 全局）；min-1 校验；DOM 经 `util.setHTML()` 注入；`onPersistOnChange` 回调即时应用。
@@ -157,16 +160,18 @@ document 级 wheel（capture）；读 `site-config` 修饰键（经 `util.checkM
 ### @grant
 
 - `GM_addStyle`（保留，实际用 `<style>` 标签注入亦可）
-- `GM_setValue` / `GM_getValue`（全局偏好存储，跨站点；如暂停时常驻开关）
+- `GM_setValue` / `GM_getValue`（全局偏好存储，跨站点；如暂停时常驻开关、黑白名单）
+- `GM_registerMenuCommand`（黑白名单管理菜单入口）
 
 ### @run-at
 
-`document-start` —— 主入口在 `load` 后执行：先初始化 logger、做黑名单检查，再 `new App()` + `start()`，保证 `body` 就绪。
+`document-start` —— 主入口在 `load` 后执行：先读取黑白名单配置、注册 GM 菜单、做拦截检查，再 `new App()` + `start()`，保证 `body` 就绪。
 
 ## 数据持久化（GM_setValue / GM_getValue）
 
 所有配置统一经 Tampermonkey 的 `GM_setValue`/`GM_getValue` API 存储（跨 origin 的脚本全局空间）。
 
+- **黑白名单配置**：key `block`，值为 `{ useBlacklist, useWhitelist, blacklist[], whitelist[] }`。主入口读取（深拷贝 + 清理交集），`BlockMenu._save()` 写入。黑白名单互斥。
 - **站点修饰键配置**：key 格式 `vrz-site:{host}`（如 `vrz-site:www.bilibili.com`），值为 `{ drag:{enabled,modifiers}, zoom:{enabled,modifiers} }`。`site-config.js` 的 `load()`/`_persist()` 读写。
 - **全局偏好**（暂停时常驻、快捷键开关等）：key 如 `vrz-persist-on-pause`（布尔）、`vrz-kb-enabled`（布尔）、`vrz-kb-groups`（对象）。`util.getPref/setPref` 封装。
 - `siteConfig.load()` 仅在阶段二调用 → 无视频站点不读 GM 配置。
@@ -178,7 +183,7 @@ document 级 wheel（capture）；读 `site-config` 修饰键（经 `util.checkM
 - **旋转**：90° 双向
 - **移动**：步长 20px
 - **激活尺寸门槛**：`minActivateWidth=400, minActivateHeight=225`
-- **站点黑名单**：`s1.hdslb.com`、`message.bilibili.com`、`challenges.cloudflare.com`（hostname 精确匹配，命中不启动）
+- **黑白名单**：`block.useBlacklist=true`（默认启用黑名单），`block.useWhitelist=false`；`block.blacklist=['s1.hdslb.com','message.bilibili.com','challenges.cloudflare.com']`；黑白名单互斥；经 GM_setValue 持久化（key `block`）
 - **拖拽/滚轮默认修饰键**：`['shift']`（可组合 alt/ctrl/shift，min-1）
 - **UI 工具条偏移**：`ui.bottomBase=14`（相对 video 左上角）
 - **暂停时常驻**：`ui.persistOnPause=false`（默认暂停后自动隐藏；配置面板可切换，经 GM 全局生效）

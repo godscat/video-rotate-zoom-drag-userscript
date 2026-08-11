@@ -326,6 +326,105 @@ const STYLE = `
     color: #fb6;
   }
 
+  /* 黑白名单管理列表 */
+  .vrz-block-list {
+    max-height: 160px;
+    overflow-y: auto;
+    margin-top: 6px;
+  }
+  .vrz-block-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    transition: background 0.12s;
+  }
+  .vrz-block-item:hover { background: rgba(255, 255, 255, 0.08); }
+  .vrz-block-host { opacity: 0.85; word-break: break-all; }
+  .vrz-block-remove {
+    flex-shrink: 0;
+    width: 20px;
+    height: 20px;
+    margin-left: 8px;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 60, 60, 0.4);
+    color: #fff;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .vrz-block-remove:hover { background: rgba(255, 60, 60, 0.8); }
+  .vrz-block-empty {
+    padding: 8px;
+    font-size: 12px;
+    opacity: 0.4;
+    text-align: center;
+  }
+  .vrz-block-add-row {
+    display: flex;
+    gap: 6px;
+    margin-top: 6px;
+  }
+  .vrz-block-input {
+    flex: 1;
+    height: 28px;
+    padding: 0 10px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 14px;
+    background: transparent;
+    color: #fff;
+    font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  .vrz-block-input::placeholder { color: rgba(255, 255, 255, 0.3); }
+  .vrz-block-input:focus { outline: none; border-color: #36c; }
+
+  /* 本页发现的域名 */
+  .vrz-block-discovered {
+    margin-top: 6px;
+  }
+  .vrz-block-quick {
+    display: inline-flex;
+    gap: 4px;
+    flex-shrink: 0;
+    margin-left: 8px;
+  }
+  .vrz-block-tag {
+    width: 22px;
+    height: 22px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 50%;
+    background: transparent;
+    color: rgba(255, 255, 255, 0.5);
+    font: 600 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    cursor: pointer;
+    transition: all 0.12s;
+  }
+  .vrz-block-tag:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+  .vrz-block-tag.active { border-color: #36c; background: #36c; color: #fff; }
+
+  .vrz-block-reload {
+    height: 30px;
+    padding: 0 14px;
+    margin-right: auto;
+    border: 0;
+    border-radius: 15px;
+    background: #2d6;
+    color: #fff;
+    font: 600 12px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .vrz-block-reload:hover { background: #3e7; }
+  .vrz-block-reload:disabled {
+    background: rgba(255, 255, 255, 0.12);
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
   .vrz-modal-actions {
     display: flex;
     justify-content: flex-end;

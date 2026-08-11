@@ -7,7 +7,8 @@
 ## ✨ 功能特性
 
 - 🎯 **零平台适配**：自动发现 `<video>`，B站 / YouTube / 任意站点通用
-- 🚀 **两阶段懒启动**：无视频页面仅极轻量探测，发现视频才创建工具条与绑定交互；指定站点可加入黑名单完全不启动
+- 🚀 **两阶段懒启动**：无视频页面仅极轻量探测，发现视频才创建工具条与绑定交互
+- 🛡 **黑白名单**：支持站点黑名单/白名单（互斥），通过 Tampermonkey 菜单「管理黑白名单」懒加载管理面板，实时扫描 iframe 域名快捷加入
 - 🔍 **缩放**：50% – 300%，步长 5%（按钮 / 键盘 / 滚轮）
 - 🔄 **双向旋转**：90° 增量，左旋 / 右旋；90°/270° 自动按 contain 反推缩放，无黑边
 - 🖱️ **拖拽平移**：按修饰键拖拽视频；可按站点配置修饰键组合
@@ -108,15 +109,32 @@
 
 配置经 GM_setValue 保存（Tampermonkey 脚本存储）。F12 → Tampermonkey 仪表盘 → 脚本设置可查看。
 
+## 🛡 黑白名单管理
+
+通过 **Tampermonkey 菜单**（浏览器扩展图标 → 「VRZ: 管理黑白名单」）打开管理面板，即使站点被拦截也能操作。
+
+**面板功能**：
+
+- **本页发现的域名**：实时扫描页面 iframe 的 hostname，每个域名旁有 `黑`/`白` 圆形标签按钮，一键切换（互斥：加入一个列表自动从另一个移除）
+- **黑名单 / 白名单**：各含启禁用开关 + 当前站点快捷加入/移出 + 站点列表（×移除）+ hostname 输入添加（Enter 提交）
+- **刷新按钮**：默认禁用；列表变更后启用「列表已修改，刷新生效」，点击刷新页面使变更生效
+
+**规则**：
+
+- 黑名单命中 → 脚本不启动；白名单启用且未命中 → 脚本不启动
+- 黑白名单**互斥**：同一站点不能同时存在于两个列表
+- 配置经 `GM_setValue` 全局保存（key `block`），仅主框架注册菜单（iframe 不重复）
+
 ## 📁 项目结构
 
 ```
 src/
-├── video-rotate-zoom-drag.user.js   # 主入口（IIFE：日志初始化 + 黑名单 + 启动 App）
+├── video-rotate-zoom-drag.user.js   # 主入口（IIFE：黑白名单拦截 + GM 菜单 + 启动 App）
 └── modules/
     ├── ab-loop.js                  # A-B 循环（起点/终点/自动回跳）
     ├── app.js                      # 协调器：两阶段懒启动 + 视频发现/SPA/位置同步/显隐/清理
-    ├── config.js                   # 全局配置：参数/修饰键/快捷键/分组/阈值/黑名单/日志/ui/playbackSpeeds
+    ├── block-menu.js               # 黑白名单 GM 菜单 + 懒加载管理面板（iframe 域名扫描、互斥）
+    ├── config.js                   # 全局配置：参数/修饰键/快捷键/分组/阈值/黑白名单/日志/ui/playbackSpeeds
     ├── constants.js                # 技术映射表：修饰键→键名、win/mac 显示（CONSTANTS.VALID_MODS*）
     ├── transform-engine.js         # 变换状态源：apply()/calculateScale()/zoom/rotate/move
     ├── ui-overlay.js               # 悬浮工具条（左上角定位，方向移动弹出菜单，缩放/倍速下拉）
@@ -154,7 +172,7 @@ node --check dist/video-rotate-zoom-drag.user.js   # 语法校验
 ### 架构要点
 
 - **两阶段懒启动**：加载后仅 `play` + MutationObserver 探测；首次激活视频才创建 UI/交互处理器。无视频站点零监听开销
-- **站点黑名单**：`config.js` 的 `blacklist`（hostname 精确匹配），主入口命中即不启动
+- **黑白名单**：`config.js` 的 `block` 对象（`useBlacklist`/`useWhitelist`/`blacklist`/`whitelist`），经 `GM_setValue` 持久化；主入口入口级拦截；`BlockMenu` 提供 GM 菜单 + 懒加载管理面板；黑白名单互斥
 - **零平台选择器**：`document.querySelector('video')` + `play` 事件 + MutationObserver（SPA）
 - **变换作用于 `<video>`**：动态 `<style>` 标签 + `video[data-vrz-active]` 选择器，不污染 inline style
 - **位置跟随**：浮层 `position:fixed`，`reposition(stageRect)` 跟随视频父元素位置；SPA MutationObserver 在 DOM 变化引发布局位移时同步修正（解决 B 站导航栏延迟出现导致的位置偏移）
