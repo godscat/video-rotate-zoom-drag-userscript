@@ -3,9 +3,9 @@
  *
  * 设计要点：
  *  - .vrz-container: position:fixed 挂到 body，跟随视频父元素 rect
- *  - .vrz-controls:  绝对定位在容器底部居中，pointer-events:none
+ *  - .vrz-controls:  绝对定位在容器左上角，pointer-events:none
  *  - .vrz-main-bar:       玻璃胶囊，pointer-events:auto 接收点击
- *
+ *  - .vrz-secondary-bar:  次级面板（绝对定位在 vrz-main-bar 右侧，保持 bar 居左不动）
  * 不再为每个平台写选择器，所有样式通过自定义类名隔离。
  */
 
@@ -194,7 +194,7 @@ const STYLE = `
   }
   .vrz-move-menu.hidden { display: none; }
 
-  /* 次级面板（绝对定位在 bar 右侧，保持 bar 居中不动） */
+  /* 次级面板（绝对定位在 vrz-main-bar 右侧，保持 bar 居左不动） */
   .vrz-secondary-bar {
     position: absolute;
     left: 100%;
