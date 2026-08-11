@@ -234,5 +234,6 @@ document 级 wheel（capture）；读 `site-config` 修饰键（经 `util.checkM
 
 - **必须等用户测试过才能 commit**：代码改动（尤其功能逻辑）完成后，必须先让用户在浏览器中加载 `dist/video-rotate-zoom-drag.user.js` 实测验证通过，得到用户确认后才可以 `git commit`。不要改完立即提交。
 - **测试通过后同步文档再提交**：用户确认测试通过后，先更新 `README.md`（功能特性、工具条布局、快捷键表、项目结构等）和 `CLAUDE.md`（模块清单、依赖图、配置默认值等）与最新代码一致，然后再 commit。如果任务来源是 `TODOS.md`，则先更新 `TODOS.md` 中的任务状态为完成，然后再 commit。
-- **推送必须得到用户明确许可**：只有在用户明确说"推送"、"上传到 GitHub"等指令时才执行 `git push`。日常开发构建、修改代码后**不要自动推送**。
+- **推送必须得到用户明确许可**：只有在用户明确说"推送"、"上传到 GitHub"等指令时才执行 `git push`。**"提交" = 仅 commit，不含 push。** 日常开发构建、修改代码后绝对不要自动推送，即使是 commit 后也不要顺势 push。
 - **首次推送前检查 remote**：确认 `origin` 指向用户指定的仓库地址。
+- **opencode.json 权限约束**：仓库根目录 `opencode.json` 配置了 `"git push *": "deny"`，执行 push 时会被 opencode 框架层面拦截。
