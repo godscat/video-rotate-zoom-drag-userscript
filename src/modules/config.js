@@ -25,10 +25,6 @@ const CONFIG = {
     default: 0,
   },
 
-  // AB 循环
-  abloop: {
-  },
-
   // 视频平移步长（像素）
   move: {
     stepSize: 20,

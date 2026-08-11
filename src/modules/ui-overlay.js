@@ -331,6 +331,16 @@ class UIOverlay {
     this.hide();
   }
 
+  destroy() {
+    this.detach();
+    if (this._moveDocClick) document.removeEventListener('mousedown', this._moveDocClick);
+    if (this._zoomDocClick) document.removeEventListener('mousedown', this._zoomDocClick);
+    if (this._docClick) document.removeEventListener('mousedown', this._docClick);
+    if (this.container && this.container.parentNode) {
+      this.container.parentNode.removeChild(this.container);
+    }
+  }
+
   _detachRate() {
     if (this._video && this._rateChangeHandler) {
       this._video.removeEventListener('ratechange', this._rateChangeHandler);

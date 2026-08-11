@@ -50,7 +50,7 @@ const STYLE = `
     user-select: none;
     -webkit-user-select: none;
   }
-  .vrz-main-bar { }
+  .vrz-main-bar {}
 
   .vrz-btn {
     display: inline-flex;
@@ -108,24 +108,30 @@ const STYLE = `
     padding: 0 2px;
     font-size: 12px;
   }
-  .vrz-speed-menu {
+  /* 弹出菜单共享样式 */
+  .vrz-speed-menu,
+  .vrz-zoom-menu,
+  .vrz-move-menu {
     position: absolute;
     top: 100%;
-    left: 50%;
-    transform: translateX(-50%);
     margin-top: 6px;
-    min-width: 60px;
-    padding: 4px 0;
     border-radius: 10px;
     background-color: rgba(0, 0, 0, 0.65);
     -webkit-backdrop-filter: saturate(180%) blur(17.5px);
     backdrop-filter: saturate(180%) blur(17.5px);
     z-index: calc(var(--z-index-base) + 2);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 12px;
     font-weight: 600;
     color: #fff;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  }
+  .vrz-speed-menu {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 60px;
+    padding: 4px 0;
   }
   .vrz-speed-menu.hidden { display: none; }
   .vrz-speed-item {
@@ -152,23 +158,10 @@ const STYLE = `
     font-variant-numeric: tabular-nums;
   }
   .vrz-zoom-menu {
-    position: absolute;
-    top: 100%;
-    margin-top: 6px;
     padding: 6px;
-    border-radius: 10px;
-    background-color: rgba(0, 0, 0, 0.65);
-    -webkit-backdrop-filter: saturate(180%) blur(17.5px);
-    backdrop-filter: saturate(180%) blur(17.5px);
-    z-index: calc(var(--z-index-base) + 2);
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 2px;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    color: #fff;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
   }
   .vrz-zoom-menu.hidden { display: none; }
   .vrz-zoom-item {
@@ -191,22 +184,13 @@ const STYLE = `
     display: inline-flex;
   }
   .vrz-move-menu {
-    position: absolute;
-    top: 100%;
     left: 50%;
     transform: translateX(-50%);
-    margin-top: 6px;
     padding: 6px;
-    border-radius: 10px;
-    background-color: rgba(0, 0, 0, 0.65);
-    -webkit-backdrop-filter: saturate(180%) blur(17.5px);
-    backdrop-filter: saturate(180%) blur(17.5px);
-    z-index: calc(var(--z-index-base) + 2);
     display: grid;
     grid-template-columns: repeat(3, auto);
     grid-template-rows: repeat(3, auto);
     gap: 2px;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
   }
   .vrz-move-menu.hidden { display: none; }
 
@@ -497,4 +481,4 @@ class Styles {
   }
 }
 
-export { Styles, STYLE };
+export { Styles };

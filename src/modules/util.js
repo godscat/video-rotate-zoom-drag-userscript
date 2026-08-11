@@ -29,16 +29,6 @@ function fillPrefixWith(num, width, fillChar = "0") {
 }
 
 /**
- * 格式化显示文本："{value}" 占位替换
- * @param {string} template - 模板字符串
- * @param {*} value - 值
- * @returns {string}
- */
-function formatText(template, value) {
-  return template.replace("{value}", value);
-}
-
-/**
  * 格式化秒：H:MM:SS.d（始终带一位小数，0.1s 精度）
  * @param {number} time
  * @returns {string}
@@ -116,4 +106,4 @@ function setPref(key, value) {
   } catch (e) {}
 }
 
-export { checkModifiers, formatText, formatTime, setHTML, getPref, setPref };
+export { checkModifiers, formatTime, setHTML, getPref, setPref };

@@ -98,20 +98,23 @@ class App {
     this.keyboard = new KeyboardShortcuts(this);
 
     // 阶段二的全局监听（显隐控制 / 位置同步 / 暂停常驻）
-    document.addEventListener(
-      'pause',
-      (e) => {
-        if (e.target instanceof HTMLVideoElement && e.target === this.activeVideo) {
-          this.isPaused = true;
-          if (CONFIG.ui.persistOnPause) this.showPersistent();
-          else this.showAndTimer();
-        }
-      },
-      true
-    );
-    document.addEventListener('scroll', () => this.updateRectAndPosition(), { passive: true, capture: true });
-    window.addEventListener('resize', () => this.updateRectAndPosition(), { passive: true });
-    window.addEventListener('pointermove', (e) => this.handleGlobalPointer(e), { passive: true });
+    this._onPause = (e) => {
+      if (e.target instanceof HTMLVideoElement && e.target === this.activeVideo) {
+        this.isPaused = true;
+        if (CONFIG.ui.persistOnPause) this.showPersistent();
+        else this.showAndTimer();
+      }
+    };
+    document.addEventListener('pause', this._onPause, true);
+
+    this._onScroll = () => this.updateRectAndPosition();
+    document.addEventListener('scroll', this._onScroll, { passive: true, capture: true });
+
+    this._onResize = () => this.updateRectAndPosition();
+    window.addEventListener('resize', this._onResize, { passive: true });
+
+    this._onPointerMove = (e) => this.handleGlobalPointer(e);
+    window.addEventListener('pointermove', this._onPointerMove, { passive: true });
 
     this.logger.info('交互处理器已就绪');
   }
@@ -122,18 +125,15 @@ class App {
    */
   start() {
     // play 事件：视频发现核心。handler 未就绪时仅走激活路径，不触碰 UI。
-    document.addEventListener(
-      'play',
-      (e) => {
-        if (e.target instanceof HTMLVideoElement && this._isPrimaryVideo(e.target)) {
-          this.activate(e.target);
-        }
-        if (!this._handlersReady) return;
-        this.isPaused = false;
-        this.showAndTimer();
-      },
-      true
-    );
+    this._onPlay = (e) => {
+      if (e.target instanceof HTMLVideoElement && this._isPrimaryVideo(e.target)) {
+        this.activate(e.target);
+      }
+      if (!this._handlersReady) return;
+      this.isPaused = false;
+      this.showAndTimer();
+    };
+    document.addEventListener('play', this._onPlay, true);
 
     // SPA：DOM 变化后重新扫描 + 重新定位（防抖）
     // DOM mutation 常引发布局位移（如 B 站导航栏出现），需同步修正浮层位置
@@ -250,6 +250,7 @@ class App {
    * 解绑当前视频
    */
   detach() {
+    this.clearHideTimer();
     this.engine.detach();
     if (this.ui) this.ui.detach();
     this.abLoop.reset();
@@ -378,6 +379,17 @@ class App {
     if (this.helpPanel) this.helpPanel.close();
     if (this.spaObserver) this.spaObserver.disconnect();
     clearTimeout(this._spaTimer);
+
+    // 移除阶段二全局事件监听器
+    if (this._onPause) document.removeEventListener('pause', this._onPause, true);
+    if (this._onScroll) document.removeEventListener('scroll', this._onScroll, { capture: true });
+    if (this._onResize) window.removeEventListener('resize', this._onResize);
+    if (this._onPointerMove) window.removeEventListener('pointermove', this._onPointerMove);
+
+    // 移除阶段一 play 监听器
+    if (this._onPlay) document.removeEventListener('play', this._onPlay, true);
+
+    this.ui?.destroy();
   }
 
   getState() {

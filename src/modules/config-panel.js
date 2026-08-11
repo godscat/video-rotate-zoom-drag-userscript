@@ -14,7 +14,7 @@
  */
 
 import CONFIG from './config.js';
-import { setHTML, setPref, getPref } from "./util";
+import { setHTML, setPref, getPref } from "./util.js";
 
 const SECTION_LABEL = {
   drag: '配置鼠标拖拽「前置键」',

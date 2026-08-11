@@ -21,17 +21,17 @@ const CONSTANTS = {
   VALID_MODS: ["alt", "ctrl", "shift"],
 
   /**
-   * 合法的修饰键对应的键名
-   * @type {Record<ValidMod, ValidKeyName[]>}
+   * 合法的修饰键对应的 KeyboardEvent 属性名
+   * @type {Record<ValidMod, ValidKeyName>}
    */
   VALID_MODS_KEYNAMES: {
-    alt: ["altKey"],
-    ctrl: ["ctrlKey"],
-    shift: ["shiftKey"],
+    alt: "altKey",
+    ctrl: "ctrlKey",
+    shift: "shiftKey",
   },
 
   /**
-   * 平台键名显示
+   * 平台键名显示（预留：配置面板修饰键显示用，暂未实现）
    * @type {Record<'windows' | 'mac', Record<ValidMod, string>>}
    */
   VALID_MODS_KEYDISPLAY: {
