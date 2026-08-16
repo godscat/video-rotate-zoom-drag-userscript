@@ -205,7 +205,7 @@ node --check dist/video-rotate-zoom-drag.user.js   # 语法校验
 
 ## 🙏 致谢 / Credits
 
-本项目站在以下作者与项目的肩膀上：
+本项目灵感来自以下作者与项目：
 
 - **浮云里的浮云** — 原始版本（缩放/旋转/拖拽功能）
   - 主页：https://space.bilibili.com/1531643081
