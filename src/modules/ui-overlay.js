@@ -10,7 +10,7 @@
  * 按钮提示：全部带 title（动作 + 快捷键）。
  */
 
-import CONFIG from './config.js';
+import config from './config.js';
 import { formatTime } from './util.js';
 
 class UIOverlay {
@@ -49,6 +49,7 @@ class UIOverlay {
 
     this.engine.onChange = (state) => this.updateDisplay(state);
     this.updateDisplay(this.engine.getState());
+    this.setWake(false);
   }
 
   _btn(label, title, onClick, extraClass = '') {
@@ -163,7 +164,7 @@ class UIOverlay {
   }
 
   _buildMove() {
-    const step = CONFIG.move.stepSize;
+    const step = config.move.stepSize;
     this.moveWrap = document.createElement('div');
     this.moveWrap.className = 'vrz-move-wrap';
 
@@ -203,21 +204,54 @@ class UIOverlay {
     const group = document.createElement('div');
     group.className = 'vrz-group vrz-ab';
 
-    this.btnA = this._btn('A', '设置循环起点 A（Shift+点击清空）', (e) => {
+    this.btnA = this._btn('A', '设置循环起点 A（Shift+点击清空；悬停微调）', (e) => {
       e.shiftKey ? this.abLoop.clearA() : this.abLoop.setA();
     }, 'vrz-ab-mark');
-    this.btnB = this._btn('B', '设置循环终点 B（Shift+点击清空）', (e) => {
+    this.btnB = this._btn('B', '设置循环终点 B（Shift+点击清空；悬停微调）', (e) => {
       e.shiftKey ? this.abLoop.clearB() : this.abLoop.setB();
     }, 'vrz-ab-mark');
-    this.btnL = this._btn('L', '开始 A-B 循环', () => this.abLoop.toggleLoop(), 'vrz-ab-loop');
+    this.btnL = this._btn('L', '开始 A-B 循环（仅设 B 也可，A 默认 0）', () => this.abLoop.toggleLoop(), 'vrz-ab-loop');
 
-    group.appendChild(this.btnA);
-    group.appendChild(this.btnB);
+    group.appendChild(this._buildABFineTune(this.btnA, 'start'));
+    group.appendChild(this._buildABFineTune(this.btnB, 'end'));
     group.appendChild(this.btnL);
 
     this.abLoop.onChange = (st) => this._updateAB(st);
     this._updateAB(this.abLoop.getState());
     return group;
+  }
+
+  /** A/B 悬停微调器：[-5s][-1s][-0.1s][+0.1s][+1s][+5s] */
+  _buildABFineTune(btn, kind) {
+    const wrap = document.createElement('div');
+    wrap.className = 'vrz-ab-wrap';
+
+    const menu = document.createElement('div');
+    menu.className = 'vrz-ab-fine hidden';
+    const DELTAS = [-5, -1, -0.1, 0.1, 1, 5];
+    DELTAS.forEach((delta) => {
+      const b = document.createElement('button');
+      b.className = 'vrz-fine-btn';
+      b.textContent = (delta > 0 ? '+' : '') + delta + 's';
+      b.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (kind === 'start') this.abLoop.nudgeStart(delta);
+        else this.abLoop.nudgeEnd(delta);
+      });
+      menu.appendChild(b);
+    });
+
+    let hideTimer = null;
+    const show = () => { clearTimeout(hideTimer); menu.classList.remove('hidden'); };
+    const hide = () => { clearTimeout(hideTimer); hideTimer = setTimeout(() => menu.classList.add('hidden'), 250); };
+    wrap.addEventListener('mouseenter', show);
+    wrap.addEventListener('mouseleave', hide);
+    menu.addEventListener('mouseenter', show);
+    menu.addEventListener('mouseleave', hide);
+
+    wrap.appendChild(btn);
+    wrap.appendChild(menu);
+    return wrap;
   }
 
   _updateAB(st) {
@@ -226,10 +260,10 @@ class UIOverlay {
     this.btnA.textContent = a != null ? `A [${formatTime(a)}]` : 'A';
     this.btnB.textContent = b != null ? `B [${formatTime(b)}]` : 'B';
     this.btnL.textContent = st.isLooping ? 'S' : 'L';
-    this.btnL.title = st.isLooping ? '停止循环' : '开始 A-B 循环';
+    this.btnL.title = st.isLooping ? '停止循环' : '开始 A-B 循环（仅设 B 也可，A 默认 0）';
     this.btnL.classList.toggle('vrz-on', st.isLooping);
-    // 未设置 A、B 时禁用 L；正在循环时保持可用（用于停止）
-    this.btnL.disabled = !st.isLooping && !(a != null && b != null && b > a);
+    // 仅设置 B 即可循环（A 默认 0）；B 必须 > 0；正在循环时保持可用（用于停止）
+    this.btnL.disabled = !st.isLooping && !(b != null && b > 0 && (a == null || b > a));
   }
 
   toggleExpand() {
@@ -263,7 +297,7 @@ class UIOverlay {
 
     this.zoomMenu = document.createElement('div');
     this.zoomMenu.className = 'vrz-zoom-menu hidden';
-    CONFIG.zoom.levels.forEach((lv) => {
+    config.zoom.levels.forEach((lv) => {
       const item = document.createElement('div');
       item.className = 'vrz-zoom-item';
       item.textContent = `${lv}%`;
@@ -356,6 +390,20 @@ class UIOverlay {
     this.container.style.left = r.left + 'px';
     this.container.style.width = r.width + 'px';
     this.container.style.height = r.height + 'px';
+    // 工具条偏移（A 方案，全局配置）
+    this.controls.style.top = (config.ui.verticalOffset || 0) + 'px';
+    this.controls.style.left = (config.ui.horizontalOffset || 0) + 'px';
+  }
+
+  /** 全屏时把容器移入全屏元素（否则 body 下的 fixed 浮层不可见），退出时移回 body */
+  syncFullscreen() {
+    const fe = document.fullscreenElement || document.webkitFullscreenElement;
+    if (fe) {
+      if (this.container.parentNode !== fe) fe.appendChild(this.container);
+    } else if (this.container.parentNode !== document.body) {
+      document.body.appendChild(this.container);
+    }
+    this.reposition();
   }
 
   show() {
@@ -368,6 +416,26 @@ class UIOverlay {
 
   isVisible() {
     return !this.controls.classList.contains('hidden');
+  }
+
+  /** 全局唤醒固定显示：增强对比度（背景不透明度 --vrz-wake-alpha，由 config.ui.wakeBgAlpha 控制） */
+  setWake(active) {
+    this.container.classList.toggle('vrz-wake', !!active);
+    this.container.style.setProperty(
+      '--vrz-wake-alpha',
+      String(config.ui.wakeBgAlpha != null ? config.ui.wakeBgAlpha : 0.6)
+    );
+  }
+
+  /** 是否有弹出菜单处于打开状态（缩放档位/倍速/移动/AB 微调），此时不隐藏工具条 */
+  hasOpenPopup() {
+    const open = (el) => el && !el.classList.contains('hidden');
+    return (
+      open(this.zoomMenu) ||
+      open(this.speedMenu) ||
+      open(this.moveMenu) ||
+      (this.container && !!this.container.querySelector('.vrz-ab-fine:not(.hidden)'))
+    );
   }
 
   _buildSpeed() {
@@ -386,7 +454,7 @@ class UIOverlay {
 
     this.speedMenu = document.createElement('div');
     this.speedMenu.className = 'vrz-speed-menu hidden';
-    CONFIG.playbackSpeeds.forEach((s) => {
+    config.playbackSpeeds.forEach((s) => {
       const item = document.createElement('div');
       item.className = 'vrz-speed-item';
       item.textContent = this._speedLabel(s);

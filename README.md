@@ -13,9 +13,11 @@
 - 🔄 **双向旋转**：90° 增量，左旋 / 右旋；90°/270° 自动按 contain 反推缩放，无黑边
 - 🖱️ **拖拽平移**：按修饰键拖拽视频；可按站点配置修饰键组合
 - 🖲️ **滚轮缩放**：按修饰键 + 滚轮缩放
-- 🧭 **悬浮工具条**：定位在视频区域**左上角**的玻璃浮层，鼠标移入显示、移出自动隐藏
+- 🧭 **悬浮工具条**：定位在视频区域**左上角**的玻璃浮层，鼠标移动超过阈值（默认 8px）显示、停止移动 2s（可配）隐藏；缩放/倍速/移动/AB 微调弹出层打开时不隐藏
 - ▶ **展开面板**：方向移动（四向箭头图标，点击弹出）+ A-B 循环 + 配置 + 帮助
-- ⏱ **A-B 循环**：设置起点/终点，区间内自动回跳（快捷键 `[` / `]` / `\`）
+- ⏱ **A-B 循环**：仅设置终点 B 即可循环（A 默认 0）；A/B 悬停微调（±5s / ±1s / ±0.1s）（快捷键 `[` / `]` / `\`）
+- 🖥 **全屏支持**：全屏时工具条跟随显示；全局唤醒键 Alt+反引号（默认开启，不依赖快捷键总开关）在「固定显示 / 隐藏」间切换，固定显示时高对比度
+- 📐 **工具条偏移**：垂直 / 水平偏移可配置（配置面板 ±2px，全局持久化）
 - ⚡ **倍速播放**：0.5× / 0.75× / 1× / 1.25× / 1.5× / 2× 下拉选择
 - ⌨ **键盘快捷键**：默认禁用，可在配置面板中启用全部或按分组独立开关
 - ⚙ **每站点配置**：拖拽/滚轮修饰键按站点独立保存，可组合 alt/ctrl/shift
@@ -59,6 +61,7 @@
 | `H` | 帮助面板（开/关） |
 | `,` | 配置面板（开/关） |
 | `.` | 展开 / 收起次级面板 |
+| `Alt + 反引号` | 切换工具条固定显示 / 隐藏（默认开启，全屏可用） |
 
 ## 🖱️ 鼠标操作
 
@@ -82,7 +85,8 @@
       缩放档位/倍速下拉      左右旋转     还原/展开
 ```
 
-- 鼠标移入视频区域显示，移出约 3 秒后隐藏；暂停时常驻
+- 鼠标移动超过阈值（默认 8px，`ui.pointerWakeThreshold`）显示；停止移动 2s（`ui.hideDelay`）后隐藏；缩放/倍速/移动/AB 微调弹出层打开时不隐藏；暂停时常驻
+- 垂直 / 水平偏移可在配置面板 ±2px 微调；Alt+反引号 固定显示时背景高对比（`ui.wakeBgAlpha`）
 - 缩放档位、倍速、方向移动的下拉/弹出菜单**向下展开**
 - 所有按钮 hover 显示提示（动作 + 快捷键）
 
@@ -95,17 +99,19 @@
 - **启用/禁用** 切换：禁用时该功能完全关闭
 - **alt / ctrl / shift** 多选：启用时可选任意组合（如选 alt+ctrl，则需同时按下两者）
 - **至少保留 1 个**：取消最后一个会被阻止并提示（避免无修饰键时与点击暂停冲突）
-- 配置按 `location.hostname` 存入 GM_setValue（key 格式 `vrz-site:{host}`），每个站点独立保存
+- 配置按 `location.hostname` 存入 GM_setValue（key 格式 `vrz:site:{host}`），每个站点独立保存
 
 **键盘快捷键**（全局）：
 
 - **总开关**：启用/禁用全部键盘快捷键（默认禁用）
 - **分组独立开关**：启用后可按分组单独控制——缩放 / 旋转 / 全屏 / 还原 / 移动 / A-B循环 / 面板
-- 经 `GM_setValue` 全局保存（`vrz-kb-enabled` / `vrz-kb-groups`）
+- 经 `GM_setValue` 全局保存（`vrz:shortcuts.enabled` / `vrz:shortcuts.groups`）
 
 **显示选项**（全局，跨站点一致）：
 
 - **暂停时常驻**：开启后视频暂停时工具条常驻显示；关闭则暂停后自动隐藏（默认）。经 `GM_setValue` 全局保存
+- **全局唤醒键**：Alt+反引号 固定显示 / 隐藏工具条（默认开启，不依赖快捷键总开关）
+- **工具条垂直 / 水平偏移**：±2px 微调（默认 4px，全局持久化）
 
 配置经 GM_setValue 保存（Tampermonkey 脚本存储）。F12 → Tampermonkey 仪表盘 → 脚本设置可查看。
 
@@ -123,7 +129,7 @@
 
 - 黑名单命中 → 脚本不启动；白名单启用且未命中 → 脚本不启动
 - 黑白名单**互斥**：同一站点不能同时存在于两个列表
-- 配置经 `GM_setValue` 全局保存（key `block`），仅主框架注册菜单（iframe 不重复）
+- 配置经 `GM_setValue` 全局保存（key `vrz:block`），仅主框架注册菜单（iframe 不重复）
 
 ## 📁 项目结构
 
@@ -131,22 +137,22 @@
 src/
 ├── video-rotate-zoom-drag.user.js   # 主入口（IIFE：黑白名单拦截 + GM 菜单 + 启动 App）
 └── modules/
-    ├── ab-loop.js                  # A-B 循环（起点/终点/自动回跳）
-    ├── app.js                      # 协调器：两阶段懒启动 + 视频发现/SPA/位置同步/显隐/清理
+    ├── ab-loop.js                  # A-B 循环（仅设 B 即可循环，A/B 悬停微调）
+    ├── app.js                      # 协调器：两阶段懒启动 + 视频发现/SPA/位置同步/显隐（idle 隐藏/弹出层感知/唤醒固定/全屏）/清理
     ├── block-menu.js               # 黑白名单 GM 菜单 + 懒加载管理面板（iframe 域名扫描、互斥）
-    ├── config.js                   # 全局配置：参数/修饰键/快捷键/分组/阈值/黑白名单/日志/ui/playbackSpeeds
+    ├── config.js                   # 全局配置 + Proxy(config) 统一读写（vrz: 前缀持久化、旧键迁移）
     ├── constants.js                # 技术映射表：修饰键→键名、win/mac 显示（CONSTANTS.VALID_MODS*）
     ├── transform-engine.js         # 变换状态源：apply()/calculateScale()/zoom/rotate/move
-    ├── ui-overlay.js               # 悬浮工具条（左上角定位，方向移动弹出菜单，缩放/倍速下拉）
+    ├── ui-overlay.js               # 悬浮工具条（左上角定位，方向移动菜单，缩放/倍速下拉，AB 微调，全屏跟随，唤醒高对比）
     ├── drag-handler.js             # 拖拽（document 级，util.checkModifiers）
     ├── wheel-handler.js            # 滚轮缩放（document 级，util.checkModifiers）
-    ├── keyboard-shortcuts.js       # 键盘快捷键（e.code 匹配，默认禁用，分组开关）
-    ├── site-config.js              # 运行时站点配置（GM_setValue，key vrz-site:{host}）
-    ├── config-panel.js             # 配置面板：修饰键（按站点）+ 快捷键开关 + 显示选项（全局）
+    ├── keyboard-shortcuts.js       # 键盘快捷键（e.code 匹配，默认禁用，分组开关，Alt+反引号 唤醒 toggle）
+    ├── site-config.js              # 运行时站点配置（config.site，key vrz:site:{host}）
+    ├── config-panel.js             # 配置面板：修饰键（按站点）+ 快捷键开关 + 显示选项（唤醒键/偏移，全局）
     ├── help-panel.js               # 快捷键只读浮层（util.setHTML 注入）
-    ├── styles.js                   # 玻璃浮层 CSS（静态字符串，<style> 注入）
+    ├── styles.js                   # 玻璃浮层 CSS（含 AB 微调器、唤醒高对比；<style> 注入）
     ├── logger.js                   # 日志单例（[vrz]@[host] 格式，createChild/use）
-    └── util.js                     # 工具函数：checkModifiers/formatTime/formatText/setHTML（+TT 策略）
+    └── util.js                     # 工具函数：checkModifiers/formatTime/formatText/setHTML/getPref/setPref（+TT 策略）
 
 dist/
 └── video-rotate-zoom-drag.user.js  # 构建产物
@@ -179,6 +185,9 @@ node --check dist/video-rotate-zoom-drag.user.js   # 语法校验
 - **Trusted Types 兼容**：`setHTML()` + `vrz-html` 策略（YouTube 等 TT 站点）
 - **尺寸门槛**：渲染尺寸 < 400×225 的视频不激活（过滤信息流预览）
 - **全局事件**：Drag/Wheel/Keyboard 在 document 监听一次（阶段二绑定），经 `app.activeVideo` 取当前视频
+- **统一配置存取**：`config.js` 导出 `Proxy(config)` 统一读写，持久化键 `vrz:<路径>`（旧键自动迁移）；模块内不直接 `getPref/setPref`
+- **全屏 + 唤醒**：`fullscreenchange` 时工具条容器移入/移出全屏元素；Alt+反引号 toggle 固定显示（高对比）
+- **显隐控制**：鼠标停止移动 `ui.hideDelay` 后隐藏（持续移动不隐藏）；弹出菜单操作中不隐藏
 
 调试：看控制台 `[vrz]@[host] [级别] ...`（如 `[vrz]@www.youtube.com [INFO] 已激活视频`）。
 

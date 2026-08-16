@@ -52,6 +52,12 @@ const STYLE = `
   }
   .vrz-main-bar {}
 
+  /* 全局唤醒固定显示：增强对比度（背景不透明度由 config.ui.wakeBgAlpha 控制） */
+  .vrz-container.vrz-wake .vrz-bar {
+    background-color: rgba(0, 0, 0, var(--vrz-wake-alpha, 0.6));
+    box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
+  }
+
   .vrz-btn {
     display: inline-flex;
     align-items: center;
@@ -75,6 +81,59 @@ const STYLE = `
   .vrz-btn.vrz-on:hover { background: #3e7; }
 
   .vrz-ab-mark { white-space: nowrap; }
+
+  /* A/B 悬停微调器 */
+  .vrz-ab-wrap {
+    position: relative;
+    display: inline-flex;
+  }
+  .vrz-ab-fine {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 6px;
+    display: flex;
+    gap: 2px;
+    padding: 4px;
+    border-radius: 10px;
+    background-color: rgba(0, 0, 0, 0.65);
+    -webkit-backdrop-filter: saturate(180%) blur(17.5px);
+    backdrop-filter: saturate(180%) blur(17.5px);
+    z-index: calc(var(--z-index-base) + 2);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    white-space: nowrap;
+  }
+  .vrz-ab-fine.hidden { display: none; }
+  .vrz-fine-btn {
+    height: 20px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    font: 600 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+  .vrz-fine-btn:hover { background: rgba(255, 255, 255, 0.3); }
+
+  /* 配置面板：工具条垂直偏移 */
+  .vrz-offset-row {
+    margin-top: 8px;
+  }
+  .vrz-offset-label {
+    font-size: 12px;
+    opacity: 0.8;
+    margin-right: 2px;
+  }
+  .vrz-offset-value {
+    min-width: 44px;
+    text-align: center;
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.9;
+  }
 
   .vrz-display {
     min-width: 44px;

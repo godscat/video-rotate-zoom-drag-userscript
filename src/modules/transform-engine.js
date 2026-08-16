@@ -11,12 +11,12 @@
  * 回调：onChange(state) - 每次 apply 后触发，供 UI 更新显示
  */
 
-import CONFIG from './config.js';
+import config from './config.js';
 import { getLogger } from './logger.js';
 
 class TransformEngine {
   constructor() {
-    this.config = CONFIG;
+    this.config = config;
     this.logger = getLogger().createChild('TransformEngine');
 
     this.video = null;
@@ -26,8 +26,8 @@ class TransformEngine {
     this.smooth = true;
 
     this.state = {
-      zoomLevel: CONFIG.zoom.default,
-      rotation: CONFIG.rotation.default,
+      zoomLevel: config.zoom.default,
+      rotation: config.rotation.default,
       offsetX: 0,
       offsetY: 0,
     };
@@ -105,7 +105,7 @@ class TransformEngine {
     const totalScale = rotScale * userZoom;
 
     const hasTransform =
-      rotation !== 0 || zoomLevel !== CONFIG.zoom.default || offsetX !== 0 || offsetY !== 0;
+      rotation !== 0 || zoomLevel !== config.zoom.default || offsetX !== 0 || offsetY !== 0;
 
     if (!hasTransform) {
       v.removeAttribute('data-vrz-active');
@@ -142,32 +142,32 @@ class TransformEngine {
 
   // ---- 缩放 ----
   zoomIn() {
-    const { max, step } = CONFIG.zoom;
+    const { max, step } = config.zoom;
     this.state.zoomLevel = Math.min(max, this.state.zoomLevel + step);
     this.apply();
   }
 
   zoomOut() {
-    const { min, step } = CONFIG.zoom;
+    const { min, step } = config.zoom;
     this.state.zoomLevel = Math.max(min, this.state.zoomLevel - step);
     this.apply();
   }
 
   setZoom(zoomLevel) {
-    const { min, max } = CONFIG.zoom;
+    const { min, max } = config.zoom;
     this.state.zoomLevel = Math.max(min, Math.min(max, zoomLevel));
     this.apply();
   }
 
   // ---- 旋转（双向）----
   rotateLeft() {
-    const step = CONFIG.rotation.step;
+    const step = config.rotation.step;
     this.state.rotation = (this.state.rotation - step) % 360;
     this.apply();
   }
 
   rotateRight() {
-    const step = CONFIG.rotation.step;
+    const step = config.rotation.step;
     this.state.rotation = (this.state.rotation + step) % 360;
     this.apply();
   }
@@ -188,8 +188,8 @@ class TransformEngine {
   // ---- 还原 ----
   reset() {
     this.state = {
-      zoomLevel: CONFIG.zoom.default,
-      rotation: CONFIG.rotation.default,
+      zoomLevel: config.zoom.default,
+      rotation: config.rotation.default,
       offsetX: 0,
       offsetY: 0,
     };

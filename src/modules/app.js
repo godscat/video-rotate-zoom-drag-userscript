@@ -10,8 +10,7 @@
  * 不再依赖任何平台 CSS 选择器。
  */
 
-import CONFIG from './config.js';
-import { getPref } from './util.js';
+import config from './config.js';
 import { Styles } from './styles.js';
 import { TransformEngine } from './transform-engine.js';
 import { UIOverlay } from './ui-overlay.js';
@@ -35,6 +34,10 @@ class App {
     this.isPaused = false;
     this.hideTimer = null;
     this.pointerThrottled = false;
+    this._lastPointerMove = 0; // 最近一次指针移动时间（隐藏计时基准）
+    this._lastWakeX = null;    // 鼠标唤醒灵敏度：最近一次唤醒触发点
+    this._lastWakeY = null;
+    this._wakePinned = false;  // 全局唤醒键 toggle：固定显示工具条
     this.pollingId = null;
     this.layoutObserver = null; // ResizeObserver 监听 stage
     this.spaObserver = null; // MutationObserver 监听 DOM 变化
@@ -49,8 +52,7 @@ class App {
     this.configPanel = null;
     this.helpPanel = null;
 
-    // 读取全局偏好覆盖默认配置（暂停时常驻等，跨站点生效）
-    CONFIG.ui.persistOnPause = !!getPref('vrz-persist-on-pause', CONFIG.ui.persistOnPause);
+    // 全局偏好经 config Proxy 读写（存储键 vrz:<路径>），无需构造期预读
 
     // 阶段一即可安全创建（构造期无全局事件副作用）
     this.siteConfig = new SiteConfig();
@@ -79,10 +81,11 @@ class App {
       onPersistOnChange: () => {
         // 配置改变后即时应用到当前暂停状态
         if (this.isPaused) {
-          if (CONFIG.ui.persistOnPause) this.showPersistent();
+          if (config.ui.persistOnPause) this.showPersistent();
           else this.showAndTimer();
         }
       },
+      onUiChange: () => this.updateRectAndPosition(),
     });
     this.helpPanel = new HelpPanel();
 
@@ -101,7 +104,7 @@ class App {
     this._onPause = (e) => {
       if (e.target instanceof HTMLVideoElement && e.target === this.activeVideo) {
         this.isPaused = true;
-        if (CONFIG.ui.persistOnPause) this.showPersistent();
+        if (config.ui.persistOnPause) this.showPersistent();
         else this.showAndTimer();
       }
     };
@@ -115,6 +118,14 @@ class App {
 
     this._onPointerMove = (e) => this.handleGlobalPointer(e);
     window.addEventListener('pointermove', this._onPointerMove, { passive: true });
+
+    // 全屏切换：工具条容器移入/移出全屏元素，并重新定位
+    this._onFullscreenChange = () => {
+      if (this.ui) this.ui.syncFullscreen();
+      requestAnimationFrame(() => this.updateRectAndPosition());
+    };
+    document.addEventListener('fullscreenchange', this._onFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', this._onFullscreenChange);
 
     this.logger.info('交互处理器已就绪');
   }
@@ -181,7 +192,7 @@ class App {
     const w = v.clientWidth;
     const h = v.clientHeight;
     if (!w || !h) return false;
-    return w >= CONFIG.video.minActivateWidth && h >= CONFIG.video.minActivateHeight;
+    return w >= config.video.minActivateWidth && h >= config.video.minActivateHeight;
   }
 
   /**
@@ -227,6 +238,8 @@ class App {
 
     this.engine.attach(video);
     this.ui.attach(this.stage, video);
+    // 若激活时已在全屏状态，立即把工具条移入全屏元素
+    this.ui.syncFullscreen();
 
     // 激活后短时轮询，等待布局稳定（B 站等站点布局延迟位移较慢）
     this.startPolling(1500);
@@ -251,6 +264,8 @@ class App {
    */
   detach() {
     this.clearHideTimer();
+    this._wakePinned = false;
+    if (this.ui) this.ui.setWake(false);
     this.engine.detach();
     if (this.ui) this.ui.detach();
     this.abLoop.reset();
@@ -289,6 +304,7 @@ class App {
    * 全局指针移动：控制浮层显隐
    */
   handleGlobalPointer(e) {
+    this._lastPointerMove = Date.now();
     if (this.pointerThrottled) return;
     this.pointerThrottled = true;
     setTimeout(() => { this.pointerThrottled = false; }, 150);
@@ -297,7 +313,13 @@ class App {
       this.detach();
       return;
     }
-    if (!this.activeVideo || !this.videoRect || (this.isPaused && CONFIG.ui.persistOnPause)) return;
+    if (!this.activeVideo || !this.videoRect || (this.isPaused && config.ui.persistOnPause)) return;
+
+    // 唤醒键固定显示：保持常驻，不受指针位置影响
+    if (this._wakePinned) {
+      this.ui.show();
+      return;
+    }
 
     const rect = this.videoRect;
     const overVideo =
@@ -306,7 +328,18 @@ class App {
     const overControls = this.ui.container.contains(e.target);
 
     if (overVideo || overControls) {
-      this.showAndTimer();
+      // 唤醒灵敏度：距上次唤醒触发点移动超过阈值才唤醒/续期（config.ui.pointerWakeThreshold）
+      const threshold = config.ui.pointerWakeThreshold || 0;
+      const dx = this._lastWakeX == null ? Infinity : Math.abs(e.clientX - this._lastWakeX);
+      const dy = this._lastWakeY == null ? Infinity : Math.abs(e.clientY - this._lastWakeY);
+      if (Math.hypot(dx, dy) >= threshold) {
+        this._lastWakeX = e.clientX;
+        this._lastWakeY = e.clientY;
+        this.showAndTimer();
+      }
+    } else if (this.ui.hasOpenPopup()) {
+      // 正在操作弹出菜单（缩放/倍速/移动/AB 微调）：保持显示，不隐藏
+      this.ui.show();
     } else {
       this.ui.hide();
     }
@@ -315,20 +348,47 @@ class App {
   /**
    * 显示并在延时后隐藏
    */
-  showAndTimer(timeout = CONFIG.ui.hideDelay) {
+  showAndTimer(timeout = config.ui.hideDelay) {
     this.clearHideTimer();
     this.ui.show();
+    // 唤醒键固定显示时保持常驻
+    if (this._wakePinned) return;
     this.hideTimer = setTimeout(() => {
+      // 弹出菜单操作中：保持显示，继续等待
+      if (this.ui.hasOpenPopup()) {
+        this.showAndTimer(timeout);
+        return;
+      }
+      // 鼠标仍在移动（距最后一次移动不足 hideDelay）→ 重新计时
+      if (Date.now() - this._lastPointerMove < timeout) {
+        this.showAndTimer(timeout);
+        return;
+      }
       this.ui.hide();
     }, timeout);
   }
 
   /**
-   * 常驻显示（暂停状态）
+   * 常驻显示（暂停状态 / 唤醒键固定）
    */
   showPersistent() {
     this.clearHideTimer();
     this.ui.show();
+  }
+
+  /**
+   * 全局唤醒键（Alt+`）：toggle 工具条固定显示 / 隐藏
+   */
+  toggleWakePinned() {
+    this._wakePinned = !this._wakePinned;
+    if (this.ui) this.ui.setWake(this._wakePinned);
+    if (this._wakePinned) {
+      this.logger.info('唤醒键：工具条固定显示（高对比度）');
+      this.showPersistent();
+    } else {
+      this.logger.info('唤醒键：工具条取消固定，显隐逻辑恢复');
+      if (this.ui) this.ui.hide();
+    }
   }
 
   clearHideTimer() {
@@ -385,6 +445,10 @@ class App {
     if (this._onScroll) document.removeEventListener('scroll', this._onScroll, { capture: true });
     if (this._onResize) window.removeEventListener('resize', this._onResize);
     if (this._onPointerMove) window.removeEventListener('pointermove', this._onPointerMove);
+    if (this._onFullscreenChange) {
+      document.removeEventListener('fullscreenchange', this._onFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', this._onFullscreenChange);
+    }
 
     // 移除阶段一 play 监听器
     if (this._onPlay) document.removeEventListener('play', this._onPlay, true);

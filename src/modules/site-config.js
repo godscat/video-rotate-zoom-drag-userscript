@@ -3,7 +3,7 @@
  *
  * 职责：
  *  1. 持有当前站点的 drag/zoom 修饰键配置（默认值来自 CONFIG）
- *  2. 启动时从 GM_setValue 加载并合并（key 格式 vrz-site:{host}）
+ *  2. 启动时经 config.site 从 GM_setValue 加载并合并（key 格式 vrz:site:{host}）
  *  3. 提供 getDragConfig()/getZoomConfig() 供 handler 读取
  *  4. setDrag()/setZoom() 写入运行时 + 持久化 + 通知订阅者（配置面板用）
  *
@@ -12,20 +12,19 @@
  *  - enabled=false 时清空 modifiers
  */
 
-import CONFIG from './config.js';
+import config from './config.js';
 import { CONSTANTS } from './constants.js';
-import { getPref, setPref } from './util.js';
 import { getLogger } from './logger.js';
 
 function cloneDefaults() {
   return {
     drag: {
-      enabled: !!CONFIG.drag.enabled,
-      modifiers: [...(CONFIG.drag.modifiers || ['shift'])],
+      enabled: !!config.drag.enabled,
+      modifiers: [...(config.drag.modifiers || ['shift'])],
     },
     zoom: {
-      enabled: !!CONFIG.wheel.enabled,
-      modifiers: [...(CONFIG.wheel.modifiers || ['shift'])],
+      enabled: !!config.wheel.enabled,
+      modifiers: [...(config.wheel.modifiers || ['shift'])],
     },
   };
 }
@@ -47,17 +46,17 @@ class SiteConfig {
   /** 加载本站点配置（经 GM_setValue；失败则保持默认值） */
   load() {
     try {
-      const saved = getPref('vrz-site:' + this.host, null);
+      const saved = config.site[this.host];
       if (saved) {
         const dragMods = normModifiers(saved.drag && saved.drag.modifiers);
         const zoomMods = normModifiers(saved.zoom && saved.zoom.modifiers);
         this.data.drag = {
           enabled: saved.drag ? !!saved.drag.enabled : true,
-          modifiers: dragMods.length ? dragMods : [...(CONFIG.drag.modifiers || ['shift'])],
+          modifiers: dragMods.length ? dragMods : [...(config.drag.modifiers || ['shift'])],
         };
         this.data.zoom = {
           enabled: saved.zoom ? !!saved.zoom.enabled : true,
-          modifiers: zoomMods.length ? zoomMods : [...(CONFIG.wheel.modifiers || ['shift'])],
+          modifiers: zoomMods.length ? zoomMods : [...(config.wheel.modifiers || ['shift'])],
         };
       }
       this._loaded = true;
@@ -84,7 +83,7 @@ class SiteConfig {
     const next = { ...this.data.drag, ...partial };
     next.modifiers = normModifiers(next.modifiers);
     if (next.enabled && next.modifiers.length === 0) {
-      next.modifiers = [...(CONFIG.drag.modifiers || ['shift'])];
+      next.modifiers = [...(config.drag.modifiers || ['shift'])];
     }
     if (!next.enabled) next.modifiers = [];
     this.data.drag = next;
@@ -99,7 +98,7 @@ class SiteConfig {
     const next = { ...this.data.zoom, ...partial };
     next.modifiers = normModifiers(next.modifiers);
     if (next.enabled && next.modifiers.length === 0) {
-      next.modifiers = [...(CONFIG.wheel.modifiers || ['shift'])];
+      next.modifiers = [...(config.wheel.modifiers || ['shift'])];
     }
     if (!next.enabled) next.modifiers = [];
     this.data.zoom = next;
@@ -122,7 +121,7 @@ class SiteConfig {
 
   _persist() {
     try {
-      setPref('vrz-site:' + this.host, this.data);
+      config.site[this.host] = this.data;
     } catch (e) {
       this.logger.warn('保存站点配置失败', e);
     }

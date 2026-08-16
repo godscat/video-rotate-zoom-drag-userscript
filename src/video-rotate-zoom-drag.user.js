@@ -19,8 +19,7 @@
 
 import { App } from "./modules/app.js";
 import { getLogger } from "./modules/logger.js";
-import CONFIG from "./modules/config.js";
-import { getPref } from "./modules/util.js";
+import config from "./modules/config.js";
 import { BlockMenu } from "./modules/block-menu.js";
 
 (function () {
@@ -29,10 +28,10 @@ import { BlockMenu } from "./modules/block-menu.js";
   let app = null;
 
   const hostname = location.hostname;
-  const logEnabled = CONFIG.log.enabled;
+  const logEnabled = config.log.enabled;
 
-  // 读取黑白名单配置（深拷贝避免污染 CONFIG.block 默认值）
-  const block = JSON.parse(JSON.stringify(getPref("block", CONFIG.block, true)));
+  // 读取黑白名单配置（经 config Proxy 与默认值深合并，再深拷贝避免污染）
+  const block = JSON.parse(JSON.stringify(config.block));
   // 清理黑白名单交集（防老版本遗留，确保互斥）
   block.blacklist = block.blacklist.filter((h) => !block.whitelist.includes(h));
 

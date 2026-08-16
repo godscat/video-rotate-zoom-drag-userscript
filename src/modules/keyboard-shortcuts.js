@@ -8,9 +8,8 @@
  * 忽略输入框中的按键，避免与文本输入冲突。
  */
 
-import CONFIG from './config.js';
+import config from './config.js';
 import { getLogger } from './logger.js';
-import { getPref } from './util.js';
 
 class KeyboardShortcuts {
   /**
@@ -26,12 +25,15 @@ class KeyboardShortcuts {
   }
 
   _isGloballyEnabled() {
-    return !!getPref('vrz-kb-enabled', CONFIG.shortcuts.enabled);
+    return !!config.shortcuts.enabled;
   }
 
   _isGroupEnabled(group) {
-    const groups = getPref('vrz-kb-groups', {});
-    return groups[group] !== false;
+    return config.shortcuts.groups[group] !== false;
+  }
+
+  _isWakeEnabled() {
+    return !!config.ui.wakeKeyEnabled;
   }
 
   _match(e, sc) {
@@ -69,9 +71,16 @@ class KeyboardShortcuts {
     if (this._inInput(e)) return;
     if (!this.app.activeVideo) return;
 
+    // 全局唤醒键 Alt+`：默认开启，不依赖快捷键总开关（toggle 固定显示 / 隐藏）
+    if (this._isWakeEnabled() && this._match(e, { mod: 'alt', code: 'Backquote' })) {
+      e.preventDefault();
+      this.app.toggleWakePinned();
+      return;
+    }
+
     if (!this._isGloballyEnabled()) return;
 
-    const sc = CONFIG.shortcuts;
+    const sc = config.shortcuts;
     const engine = this.app.engine;
     if (!engine) return;
 
@@ -113,16 +122,16 @@ class KeyboardShortcuts {
     if (this._isGroupEnabled('move')) {
       if (this._match(e, sc.moveUp)) {
         e.preventDefault();
-        engine.move(0, -CONFIG.move.stepSize);
+        engine.move(0, -config.move.stepSize);
       } else if (this._match(e, sc.moveDown)) {
         e.preventDefault();
-        engine.move(0, CONFIG.move.stepSize);
+        engine.move(0, config.move.stepSize);
       } else if (this._match(e, sc.moveLeft)) {
         e.preventDefault();
-        engine.move(-CONFIG.move.stepSize, 0);
+        engine.move(-config.move.stepSize, 0);
       } else if (this._match(e, sc.moveRight)) {
         e.preventDefault();
-        engine.move(CONFIG.move.stepSize, 0);
+        engine.move(config.move.stepSize, 0);
       }
     }
     // A-B 循环

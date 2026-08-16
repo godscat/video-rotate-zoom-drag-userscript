@@ -1,1 +1,1 @@
-E:/Workspace/script/userscript.video.rotate-zoom-drag/CLAUDE.md
+/mnt/e/Workspace/script/userscript.video.rotate-zoom-drag/CLAUDE.md

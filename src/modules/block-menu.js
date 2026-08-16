@@ -7,7 +7,8 @@
  * 即使站点被拦截（脚本不启动），菜单仍可操作——解决「看不到配置面板」的问题。
  */
 
-import { setPref, setHTML } from './util.js';
+import { setHTML } from './util.js';
+import config from './config.js';
 import { Styles } from './styles.js';
 
 class BlockMenu {
@@ -336,7 +337,7 @@ class BlockMenu {
   }
 
   _save() {
-    setPref('block', this.block);
+    config.block = this.block;
     this._dirty = true;
   }
 }

@@ -1,10 +1,9 @@
 /**
  * 帮助面板模块 - 默认快捷键只读浮层
  *
- * 从 CONFIG.shortcuts 生成只读列表（暂不可配置）。
+ * 只读列表（当前暂不可配置），快捷键定义见 config.js。
  */
 
-import CONFIG from './config.js';
 import { setHTML } from "./util.js";
 
 const ITEMS = [
@@ -26,6 +25,7 @@ const ITEMS = [
   { code: 'KeyH', label: 'H', desc: '快捷键帮助' },
   { code: 'Comma', label: ',', desc: '修饰键配置' },
   { code: 'Period', label: '.', desc: '展开/收起面板' },
+  { code: 'Backquote', label: 'Alt + `', desc: '切换工具条显示/隐藏（全屏可用）' },
 ];
 
 class HelpPanel {

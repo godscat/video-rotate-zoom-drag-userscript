@@ -1,5 +1,4 @@
 import { CONSTANTS } from "./constants.js";
-import CONFIG from "./config.js";
 
 /**
  * 修饰键组合匹配：所选 modifiers 全部按下才返回 true
